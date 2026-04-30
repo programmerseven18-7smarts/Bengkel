@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import StokMinimumList from "@/components/bengkel/inventory/StokMinimumList";
 
 export const metadata: Metadata = {
-  title: "Stok Minimum | Bengkel ERP",
+  title: "Stok Minimum | Auto7",
   description: "Daftar barang dengan stok di bawah minimum",
 };
 

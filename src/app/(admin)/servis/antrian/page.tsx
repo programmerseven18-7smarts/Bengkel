@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import AntrianServis from "@/components/bengkel/servis/AntrianServis";
 
 export const metadata: Metadata = {
-  title: "Antrian Servis | Bengkel ERP",
+  title: "Antrian Servis | Auto7",
   description: "Daftar antrian servis bengkel",
 };
 

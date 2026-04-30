@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import StokKeluarList from "@/components/bengkel/inventory/StokKeluarList";
 
 export const metadata: Metadata = {
-  title: "Stok Keluar | Bengkel ERP",
+  title: "Stok Keluar | Auto7",
   description: "Daftar stok keluar inventory bengkel",
 };
 

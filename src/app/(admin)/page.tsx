@@ -9,8 +9,8 @@ import StokKritisTable from "@/components/bengkel/StokKritisTable";
 import Badge from "@/components/ui/badge/Badge";
 
 export const metadata: Metadata = {
-  title: "Dashboard | Bengkel ERP - Sistem Manajemen Bengkel",
-  description: "Dashboard utama Bengkel ERP untuk monitoring operasional bengkel",
+  title: "Dashboard | Auto7 - Sistem Manajemen Bengkel",
+  description: "Dashboard utama Auto7 untuk monitoring operasional bengkel",
 };
 
 // Quick action data

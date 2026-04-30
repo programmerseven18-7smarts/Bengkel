@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import SparepartList from "@/components/bengkel/inventory/SparepartList";
 
 export const metadata: Metadata = {
-  title: "Daftar Sparepart | Bengkel ERP",
+  title: "Daftar Sparepart | Auto7",
   description: "Daftar sparepart inventory bengkel",
 };
 

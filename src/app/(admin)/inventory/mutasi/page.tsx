@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import MutasiStokList from "@/components/bengkel/inventory/MutasiStokList";
 
 export const metadata: Metadata = {
-  title: "Mutasi Stok | Bengkel ERP",
+  title: "Mutasi Stok | Auto7",
   description: "Riwayat mutasi stok inventory bengkel",
 };
 

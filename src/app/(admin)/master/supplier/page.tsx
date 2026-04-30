@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import SupplierList from "@/components/bengkel/master/SupplierList";
 
 export const metadata: Metadata = {
-  title: "Data Supplier | Bengkel ERP",
+  title: "Data Supplier | Auto7",
   description: "Daftar supplier bengkel",
 };
 

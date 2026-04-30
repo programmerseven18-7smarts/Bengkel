@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import MekanikList from "@/components/bengkel/master/MekanikList";
 
 export const metadata: Metadata = {
-  title: "Data Mekanik | Bengkel ERP",
+  title: "Data Mekanik | Auto7",
   description: "Daftar mekanik bengkel",
 };
 

@@ -3,7 +3,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import WorkOrderDetail from "@/components/bengkel/servis/WorkOrderDetail";
 
 export const metadata: Metadata = {
-  title: "Detail Work Order | Bengkel ERP",
+  title: "Detail Work Order | Auto7",
   description: "Detail work order servis bengkel",
 };
 

@@ -84,7 +84,7 @@ const AppHeader: React.FC = () => {
 
           <Link href="/" className="flex items-center gap-2 lg:hidden">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500">
-              <span className="text-lg font-bold text-white">B</span>
+              <span className="text-lg font-bold text-white">A</span>
             </div>
             <span className="text-base font-bold text-gray-800 dark:text-white 2xsm:text-lg">
               Auto7
