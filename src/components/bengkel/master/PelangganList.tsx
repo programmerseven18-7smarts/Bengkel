@@ -107,58 +107,98 @@ export default function PelangganList() {
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="max-w-full overflow-x-auto">
-        <div className="min-w-[900px]">
+      {/* Mobile Card View */}
+      <div className="block lg:hidden">
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+          {pelangganData.map((pelanggan) => (
+            <div key={pelanggan.id} className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="font-medium text-gray-800 dark:text-white/90">
+                    {pelanggan.nama}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {pelanggan.kode}
+                  </p>
+                </div>
+                <Badge
+                  size="sm"
+                  color={pelanggan.status === "Aktif" ? "success" : "light"}
+                >
+                  {pelanggan.status}
+                </Badge>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">No. HP</span>
+                  <span className="text-gray-800 dark:text-white/90">{pelanggan.noHp}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Email</span>
+                  <span className="text-gray-800 dark:text-white/90">{pelanggan.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Kendaraan</span>
+                  <span className="text-gray-800 dark:text-white/90">{pelanggan.totalKendaraan}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Total Servis</span>
+                  <span className="text-gray-800 dark:text-white/90">{pelanggan.totalServis}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Alamat</span>
+                  <p className="text-gray-800 dark:text-white/90 mt-1">{pelanggan.alamat}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-white/[0.05]">
+                <Link
+                  href={`/master/pelanggan/${pelanggan.id}`}
+                  className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400"
+                >
+                  <EyeIcon className="size-5" />
+                </Link>
+                <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
+                  <PencilIcon className="size-5" />
+                </button>
+                <button className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400">
+                  <TrashBinIcon className="size-5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <div className="max-w-full overflow-x-auto">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Kode
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Nama
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   No. HP
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Alamat
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">
                   Kendaraan
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">
                   Total Servis
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Status
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Aksi
                 </TableCell>
               </TableRow>

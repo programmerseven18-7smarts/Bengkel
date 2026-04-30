@@ -151,8 +151,8 @@ export default function WorkOrderList() {
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
       {/* Header */}
-      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:w-64">
             <Input
               type="text"
@@ -160,88 +160,133 @@ export default function WorkOrderList() {
               className="w-full"
             />
           </div>
-          <div className="flex gap-3">
-            <div className="w-40">
-              <Select
-                options={statusOptions}
-                placeholder="Status"
-                onChange={setSelectedStatus}
-                defaultValue={selectedStatus}
-              />
-            </div>
-            <div className="w-40">
-              <Select
-                options={mekanikOptions}
-                placeholder="Mekanik"
-                onChange={setSelectedMekanik}
-                defaultValue={selectedMekanik}
-              />
-            </div>
+          <Link href="/servis/work-order/create">
+            <Button
+              size="md"
+              variant="primary"
+              startIcon={<PlusIcon className="size-5" />}
+              className="w-full sm:w-auto"
+            >
+              Buat Work Order
+            </Button>
+          </Link>
+        </div>
+        <div className="flex gap-3">
+          <div className="flex-1 sm:w-40 sm:flex-none">
+            <Select
+              options={statusOptions}
+              placeholder="Status"
+              onChange={setSelectedStatus}
+              defaultValue={selectedStatus}
+            />
+          </div>
+          <div className="flex-1 sm:w-40 sm:flex-none">
+            <Select
+              options={mekanikOptions}
+              placeholder="Mekanik"
+              onChange={setSelectedMekanik}
+              defaultValue={selectedMekanik}
+            />
           </div>
         </div>
-        <Link href="/servis/work-order/create">
-          <Button
-            size="md"
-            variant="primary"
-            startIcon={<PlusIcon className="size-5" />}
-          >
-            Buat Work Order
-          </Button>
-        </Link>
       </div>
 
-      {/* Table */}
-      <div className="max-w-full overflow-x-auto">
-        <div className="min-w-[1000px]">
+      {/* Mobile Card View */}
+      <div className="block lg:hidden">
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+          {workOrders.map((order) => (
+            <div key={order.id} className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <Link
+                    href={`/servis/work-order/${order.id}`}
+                    className="font-medium text-brand-500 hover:text-brand-600"
+                  >
+                    {order.noWorkOrder}
+                  </Link>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {order.tanggal}
+                  </p>
+                </div>
+                <Badge size="sm" color={getStatusColor(order.status)}>
+                  {order.status}
+                </Badge>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Pelanggan</span>
+                  <span className="text-gray-800 dark:text-white/90">{order.pelanggan}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">No. HP</span>
+                  <span className="text-gray-800 dark:text-white/90">{order.noHp}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Kendaraan</span>
+                  <span className="text-gray-800 dark:text-white/90">{order.kendaraan}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Plat Nomor</span>
+                  <span className="text-gray-800 dark:text-white/90">{order.platNomor}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Mekanik</span>
+                  <span className="text-gray-800 dark:text-white/90">{order.mekanik}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Estimasi</span>
+                  <span className="font-medium text-gray-800 dark:text-white/90">{order.estimasi}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Keluhan</span>
+                  <p className="text-gray-800 dark:text-white/90 mt-1">{order.keluhan}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-white/[0.05]">
+                <Link href={`/servis/work-order/${order.id}`}>
+                  <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
+                    <PencilIcon className="size-5" />
+                  </button>
+                </Link>
+                <button className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400">
+                  <TrashBinIcon className="size-5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <div className="max-w-full overflow-x-auto">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   No. Work Order
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Pelanggan
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Kendaraan
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Keluhan
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Mekanik
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Status
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Estimasi
                 </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Aksi
                 </TableCell>
               </TableRow>

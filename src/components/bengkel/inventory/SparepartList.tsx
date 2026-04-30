@@ -211,132 +211,126 @@ export default function SparepartList() {
       {/* Table Card */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         {/* Header */}
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="w-full sm:w-64">
-              <Input
-                type="text"
-                placeholder="Cari sparepart..."
-                className="w-full"
-              />
+              <Input type="text" placeholder="Cari sparepart..." className="w-full" />
             </div>
-            <div className="w-40">
-              <Select
-                options={kategoriOptions}
-                placeholder="Kategori"
-                onChange={setSelectedKategori}
-                defaultValue={selectedKategori}
-              />
+            <Button size="md" variant="primary" startIcon={<PlusIcon className="size-5" />} className="w-full sm:w-auto">
+              Tambah Sparepart
+            </Button>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1 sm:w-40 sm:flex-none">
+              <Select options={kategoriOptions} placeholder="Kategori" onChange={setSelectedKategori} defaultValue={selectedKategori} />
             </div>
-            <div className="w-40">
-              <Select
-                options={statusStokOptions}
-                placeholder="Status Stok"
-                onChange={setSelectedStatusStok}
-                defaultValue={selectedStatusStok}
-              />
+            <div className="flex-1 sm:w-40 sm:flex-none">
+              <Select options={statusStokOptions} placeholder="Status Stok" onChange={setSelectedStatusStok} defaultValue={selectedStatusStok} />
             </div>
           </div>
-          <Button
-            size="md"
-            variant="primary"
-            startIcon={<PlusIcon className="size-5" />}
-          >
-            Tambah Sparepart
-          </Button>
         </div>
 
-        {/* Table */}
-        <div className="max-w-full overflow-x-auto">
-          <div className="min-w-[1200px]">
+        {/* Mobile Card View */}
+        <div className="block lg:hidden">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+            {sparepartData.map((item) => {
+              const status = getStokStatus(item.stok, item.minStok);
+              return (
+                <div key={item.id} className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-medium text-gray-800 dark:text-white/90">{item.nama}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{item.kode} - {item.lokasi}</p>
+                    </div>
+                    <Badge size="sm" color={status.color}>{status.label}</Badge>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Kategori</span>
+                      <Badge size="sm" color="light">{item.kategori}</Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Supplier</span>
+                      <span className="text-gray-800 dark:text-white/90">{item.supplier}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Stok</span>
+                      <span className={`font-medium ${status.color === "error" ? "text-error-500" : status.color === "warning" ? "text-warning-600" : "text-gray-800 dark:text-white/90"}`}>
+                        {item.stok} {item.satuan}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Min. Stok</span>
+                      <span className="text-gray-800 dark:text-white/90">{item.minStok} {item.satuan}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Harga Beli</span>
+                      <span className="text-gray-800 dark:text-white/90">Rp {item.hargaBeli.toLocaleString("id-ID")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Harga Jual</span>
+                      <span className="font-medium text-gray-800 dark:text-white/90">Rp {item.hargaJual.toLocaleString("id-ID")}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-white/[0.05]">
+                    <button onClick={() => openDetail(item)} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
+                      <EyeIcon className="size-5" />
+                    </button>
+                    <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
+                      <PencilIcon className="size-5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden lg:block">
+          <div className="max-w-full overflow-x-auto">
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                 <TableRow>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Kode
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Nama Barang
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Kategori
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Supplier
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">
-                    Stok
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">
-                    Min. Stok
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400">
-                    Harga Beli
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400">
-                    Harga Jual
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Status
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Aksi
-                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Kode</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nama Barang</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Kategori</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Supplier</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Stok</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Min. Stok</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400">Harga Beli</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400">Harga Jual</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Aksi</TableCell>
                 </TableRow>
               </TableHeader>
-
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                 {sparepartData.map((item) => {
                   const status = getStokStatus(item.stok, item.minStok);
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">
-                        {item.kode}
-                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">{item.kode}</TableCell>
                       <TableCell className="px-5 py-4 text-start">
-                        <p className="text-gray-800 text-theme-sm dark:text-white/90">
-                          {item.nama}
-                        </p>
-                        <p className="text-gray-500 text-theme-xs dark:text-gray-400">
-                          {item.lokasi}
-                        </p>
+                        <p className="text-gray-800 text-theme-sm dark:text-white/90">{item.nama}</p>
+                        <p className="text-gray-500 text-theme-xs dark:text-gray-400">{item.lokasi}</p>
                       </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <Badge size="sm" color="light">
-                          {item.kategori}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                        {item.supplier}
-                      </TableCell>
+                      <TableCell className="px-5 py-4"><Badge size="sm" color="light">{item.kategori}</Badge></TableCell>
+                      <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.supplier}</TableCell>
                       <TableCell className="px-5 py-4 text-center">
                         <span className={`text-theme-sm font-medium ${status.color === "error" ? "text-error-500" : status.color === "warning" ? "text-warning-600" : "text-gray-800 dark:text-white/90"}`}>
                           {item.stok}
                         </span>
-                        <span className="text-gray-500 text-theme-xs dark:text-gray-400 ml-1">
-                          {item.satuan}
-                        </span>
+                        <span className="text-gray-500 text-theme-xs dark:text-gray-400 ml-1">{item.satuan}</span>
                       </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400">
-                        {item.minStok}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-800 text-end text-theme-sm dark:text-white/90">
-                        Rp {item.hargaBeli.toLocaleString("id-ID")}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-800 text-end text-theme-sm font-medium dark:text-white/90">
-                        Rp {item.hargaJual.toLocaleString("id-ID")}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-start">
-                        <Badge size="sm" color={status.color}>
-                          {status.label}
-                        </Badge>
-                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400">{item.minStok}</TableCell>
+                      <TableCell className="px-5 py-4 text-gray-800 text-end text-theme-sm dark:text-white/90">Rp {item.hargaBeli.toLocaleString("id-ID")}</TableCell>
+                      <TableCell className="px-5 py-4 text-gray-800 text-end text-theme-sm font-medium dark:text-white/90">Rp {item.hargaJual.toLocaleString("id-ID")}</TableCell>
+                      <TableCell className="px-5 py-4 text-start"><Badge size="sm" color={status.color}>{status.label}</Badge></TableCell>
                       <TableCell className="px-5 py-4 text-start">
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => openDetail(item)}
-                            className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400"
-                          >
+                          <button onClick={() => openDetail(item)} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
                             <EyeIcon className="size-5" />
                           </button>
                           <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
@@ -354,36 +348,23 @@ export default function SparepartList() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-white/[0.05] sm:p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Menampilkan 1-7 dari 7 data
-          </p>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={1}
-            onPageChange={setCurrentPage}
-          />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Menampilkan 1-7 dari 7 data</p>
+          <Pagination currentPage={currentPage} totalPages={1} onPageChange={setCurrentPage} />
         </div>
       </div>
 
       {/* Detail Modal */}
-      <Modal
-        isOpen={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
-        className="max-w-xl p-6 lg:p-8"
-      >
+      <Modal isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} className="max-w-xl p-6 lg:p-8">
         {selectedItem && (
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">
-                Detail Sparepart
-              </h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">Detail Sparepart</h2>
               <Badge size="sm" color={getStokStatus(selectedItem.stok, selectedItem.minStok).color}>
                 {getStokStatus(selectedItem.stok, selectedItem.minStok).label}
               </Badge>
             </div>
 
             <div className="space-y-6">
-              {/* Info Umum */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Kode</p>
@@ -411,7 +392,6 @@ export default function SparepartList() {
                 </div>
               </div>
 
-              {/* Stok & Harga */}
               <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -433,7 +413,6 @@ export default function SparepartList() {
                 </div>
               </div>
 
-              {/* Histori Mutasi */}
               <div>
                 <h4 className="font-medium text-gray-800 dark:text-white/90 mb-3">Histori Mutasi Terakhir</h4>
                 {selectedItem.mutasiTerakhir.length > 0 ? (
@@ -442,9 +421,7 @@ export default function SparepartList() {
                       <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
                         <div>
                           <p className="text-sm text-gray-800 dark:text-white/90">{mutasi.keterangan}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(mutasi.tanggal).toLocaleDateString("id-ID")}
-                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(mutasi.tanggal).toLocaleDateString("id-ID")}</p>
                         </div>
                         <Badge size="sm" color={mutasi.tipe === "Masuk" ? "success" : "error"}>
                           {mutasi.tipe === "Masuk" ? "+" : "-"}{mutasi.qty}
@@ -459,12 +436,8 @@ export default function SparepartList() {
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
-                Tutup
-              </Button>
-              <Button variant="primary">
-                Tambah Stok
-              </Button>
+              <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Tutup</Button>
+              <Button variant="primary">Tambah Stok</Button>
             </div>
           </div>
         )}
