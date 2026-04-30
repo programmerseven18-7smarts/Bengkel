@@ -11,7 +11,8 @@ import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Pagination from "@/components/tables/Pagination";
-import { PlusIcon, PencilIcon, TrashBinIcon } from "@/icons";
+import { PlusIcon, PencilIcon, TrashBinIcon, EyeIcon } from "@/icons";
+import Link from "next/link";
 
 interface Pelanggan {
   id: string;
@@ -199,6 +200,12 @@ export default function PelangganList() {
                   </TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <div className="flex items-center gap-2">
+                      <Link
+                        href={`/master/pelanggan/${pelanggan.id}`}
+                        className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400"
+                      >
+                        <EyeIcon className="size-5" />
+                      </Link>
                       <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
                         <PencilIcon className="size-5" />
                       </button>

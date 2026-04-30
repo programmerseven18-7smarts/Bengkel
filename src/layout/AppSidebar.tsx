@@ -34,8 +34,8 @@ const navItems: NavItem[] = [
     icon: <WrenchIcon />,
     name: "Servis",
     subItems: [
+      { name: "Antrian & Jadwal", path: "/servis/antrian-jadwal", pro: false },
       { name: "Work Order", path: "/servis/work-order", pro: false },
-      { name: "Antrian Servis", path: "/servis/antrian", pro: false },
       { name: "Riwayat Servis", path: "/servis/riwayat", pro: false },
     ],
   },
@@ -50,21 +50,15 @@ const navItems: NavItem[] = [
       { name: "Stok Minimum", path: "/inventory/stok-minimum", pro: false },
     ],
   },
-  {
-    icon: <ReceiptIcon />,
-    name: "Penjualan",
-    subItems: [
-      { name: "Invoice Penjualan", path: "/penjualan/invoice", pro: false },
-      { name: "Penjualan Sparepart", path: "/penjualan/sparepart", pro: false },
-    ],
-  },
+
   {
     icon: <WalletIcon />,
-    name: "Finance",
+    name: "Keuangan",
     subItems: [
-      { name: "Pembayaran", path: "/finance/pembayaran", pro: false },
-      { name: "Kas Masuk/Keluar", path: "/finance/kas", pro: false },
-      { name: "Piutang", path: "/finance/piutang", pro: false },
+      { name: "Invoice", path: "/keuangan/invoice", pro: false },
+      { name: "Pembayaran", path: "/keuangan/pembayaran", pro: false },
+      { name: "Kas & Bank", path: "/keuangan/kas-bank", pro: false },
+      { name: "Piutang", path: "/keuangan/piutang", pro: false },
     ],
   },
 ];
@@ -85,11 +79,9 @@ const othersItems: NavItem[] = [
     icon: <ReportIcon />,
     name: "Laporan",
     subItems: [
-      { name: "Laporan Penjualan", path: "/laporan/penjualan", pro: false },
       { name: "Laporan Servis", path: "/laporan/servis", pro: false },
+      { name: "Laporan Keuangan", path: "/laporan/keuangan", pro: false },
       { name: "Laporan Stok", path: "/laporan/stok", pro: false },
-      { name: "Performa Mekanik", path: "/laporan/mekanik", pro: false },
-      { name: "Laba Kotor", path: "/laporan/laba", pro: false },
     ],
   },
 ];
