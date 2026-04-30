@@ -15,7 +15,7 @@ import {
   DatabaseIcon,
   ReportIcon,
 } from "../icons/index";
-import SidebarWidget from "./SidebarWidget";
+
 
 type NavItem = {
   name: string;
@@ -300,7 +300,7 @@ const AppSidebar: React.FC = () => {
           {isExpanded || isHovered || isMobileOpen ? (
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center w-10 h-10 bg-brand-500 rounded-lg">
-                <WrenchIcon className="text-white size-6" />
+                <span className="text-xl font-bold text-white">B</span>
               </div>
               <span className="text-xl font-bold text-gray-800 dark:text-white">
                 Bengkel ERP
@@ -308,7 +308,7 @@ const AppSidebar: React.FC = () => {
             </div>
           ) : (
             <div className="flex items-center justify-center w-10 h-10 bg-brand-500 rounded-lg">
-              <WrenchIcon className="text-white size-6" />
+              <span className="text-xl font-bold text-white">B</span>
             </div>
           )}
         </Link>
@@ -351,7 +351,7 @@ const AppSidebar: React.FC = () => {
             </div>
           </div>
         </nav>
-        {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
+
       </div>
     </aside>
   );
