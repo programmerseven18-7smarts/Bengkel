@@ -1,23 +1,21 @@
 "use client";
-import React, { useEffect, useRef, useState,useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import {
-  BoxCubeIcon,
-  CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
-  PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-  TableIcon,
-  UserCircleIcon,
+  WrenchIcon,
+  InventoryIcon,
+  ReceiptIcon,
+  WalletIcon,
+  DatabaseIcon,
+  ReportIcon,
 } from "../icons/index";
-import SidebarWidget from "./SidebarWidget";
+
 
 type NavItem = {
   name: string;
@@ -30,66 +28,60 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+    path: "/",
   },
   {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
+    icon: <WrenchIcon />,
+    name: "Servis",
+    subItems: [
+      { name: "Antrian & Jadwal", path: "/servis/antrian-jadwal", pro: false },
+      { name: "Work Order", path: "/servis/work-order", pro: false },
+      { name: "Riwayat Servis", path: "/servis/riwayat", pro: false },
+    ],
   },
   {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
+    icon: <InventoryIcon />,
+    name: "Inventory",
+    subItems: [
+      { name: "Sparepart", path: "/inventory/sparepart", pro: false },
+      { name: "Stok Masuk", path: "/inventory/stok-masuk", pro: false },
+      { name: "Stok Keluar", path: "/inventory/stok-keluar", pro: false },
+      { name: "Mutasi Stok", path: "/inventory/mutasi", pro: false },
+      { name: "Stok Minimum", path: "/inventory/stok-minimum", pro: false },
+    ],
   },
 
   {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
-    icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-  },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
+    icon: <WalletIcon />,
+    name: "Keuangan",
     subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
+      { name: "Invoice", path: "/keuangan/invoice", pro: false },
+      { name: "Pembayaran", path: "/keuangan/pembayaran", pro: false },
+      { name: "Kas & Bank", path: "/keuangan/kas-bank", pro: false },
+      { name: "Piutang", path: "/keuangan/piutang", pro: false },
     ],
   },
 ];
 
 const othersItems: NavItem[] = [
   {
-    icon: <PieChartIcon />,
-    name: "Charts",
+    icon: <DatabaseIcon />,
+    name: "Master Data",
     subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
+      { name: "Pelanggan", path: "/master/pelanggan", pro: false },
+      { name: "Kendaraan", path: "/master/kendaraan", pro: false },
+      { name: "Mekanik", path: "/master/mekanik", pro: false },
+      { name: "Supplier", path: "/master/supplier", pro: false },
+      { name: "Jasa Servis", path: "/master/jasa-servis", pro: false },
     ],
   },
   {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
+    icon: <ReportIcon />,
+    name: "Laporan",
     subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
-    ],
-  },
-  {
-    icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
+      { name: "Laporan Servis", path: "/laporan/servis", pro: false },
+      { name: "Laporan Keuangan", path: "/laporan/keuangan", pro: false },
+      { name: "Laporan Stok", path: "/laporan/stok", pro: false },
     ],
   },
 ];
@@ -233,11 +225,9 @@ const AppSidebar: React.FC = () => {
   );
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // const isActive = (path: string) => path === pathname;
-   const isActive = useCallback((path: string) => path === pathname, [pathname]);
+  const isActive = useCallback((path: string) => path === pathname, [pathname]);
 
   useEffect(() => {
-    // Check if the current path matches any submenu item
     let submenuMatched = false;
     ["main", "others"].forEach((menuType) => {
       const items = menuType === "main" ? navItems : othersItems;
@@ -256,14 +246,12 @@ const AppSidebar: React.FC = () => {
       });
     });
 
-    // If no submenu item matches, close the open submenu
     if (!submenuMatched) {
       setOpenSubmenu(null);
     }
-  }, [pathname,isActive]);
+  }, [pathname, isActive]);
 
   useEffect(() => {
-    // Set the height of the submenu items when the submenu is opened
     if (openSubmenu !== null) {
       const key = `${openSubmenu.type}-${openSubmenu.index}`;
       if (subMenuRefs.current[key]) {
@@ -310,29 +298,18 @@ const AppSidebar: React.FC = () => {
       >
         <Link href="/">
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-10 h-10 bg-brand-500 rounded-lg">
+                <span className="text-xl font-bold text-white">B</span>
+              </div>
+              <span className="text-xl font-bold text-gray-800 dark:text-white">
+                Bengkel ERP
+              </span>
+            </div>
           ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
+            <div className="flex items-center justify-center w-10 h-10 bg-brand-500 rounded-lg">
+              <span className="text-xl font-bold text-white">B</span>
+            </div>
           )}
         </Link>
       </div>
@@ -348,7 +325,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
+                  "Menu Utama"
                 ) : (
                   <HorizontaLDots />
                 )}
@@ -365,7 +342,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
+                  "Lainnya"
                 ) : (
                   <HorizontaLDots />
                 )}
@@ -374,7 +351,7 @@ const AppSidebar: React.FC = () => {
             </div>
           </div>
         </nav>
-        {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
+
       </div>
     </aside>
   );
