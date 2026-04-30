@@ -460,9 +460,9 @@ export default function AntrianJadwalServis() {
                             </Button>
                           )}
                           {(item.status === "Dikerjakan" || item.status === "Menunggu Sparepart") && (
-                            <Button size="sm" variant="success">
+                            <button className="px-4 py-2 text-sm font-medium text-white bg-success-500 rounded-lg hover:bg-success-600">
                               Selesai
-                            </Button>
+                            </button>
                           )}
                         </div>
                       </TableCell>
