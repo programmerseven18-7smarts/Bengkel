@@ -10,8 +10,11 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Bengkel ERP - Sistem Manajemen Bengkel",
-  description: "Aplikasi ERP untuk manajemen bengkel otomotif, termasuk servis, inventory, penjualan, dan keuangan.",
+  title: "Kelola Bengkel - Sistem Manajemen Bengkel",
+  description: "Aplikasi untuk manajemen bengkel otomotif, termasuk servis, inventory, dan keuangan.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
