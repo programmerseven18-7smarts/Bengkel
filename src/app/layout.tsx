@@ -10,7 +10,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Kelola Bengkel - Sistem Manajemen Bengkel",
+  title: "Auto7 - Sistem Manajemen Bengkel",
   description: "Aplikasi untuk manajemen bengkel otomotif, termasuk servis, inventory, dan keuangan.",
   icons: {
     icon: "/favicon.svg",

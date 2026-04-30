@@ -301,7 +301,7 @@ const AppSidebar: React.FC = () => {
                 <span className="text-xl font-bold text-white">B</span>
               </div>
               <span className="text-xl font-bold text-gray-800 dark:text-white">
-                Kelola Bengkel
+                Auto7
               </span>
             </div>
           ) : (

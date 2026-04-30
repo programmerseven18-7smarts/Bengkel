@@ -37,7 +37,7 @@ export default function UserAddressCard() {
                   City/State
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                  Phoenix, Arizona, Indonesia.
+                  Boyolali, Indonesia.
                 </p>
               </div>
 
@@ -104,7 +104,7 @@ export default function UserAddressCard() {
 
                 <div>
                   <Label>City/State</Label>
-                  <Input type="text" defaultValue="Arizona, Indonesia." />
+                  <Input type="text" defaultValue="Boyolali, Indonesia." />
                 </div>
 
                 <div>

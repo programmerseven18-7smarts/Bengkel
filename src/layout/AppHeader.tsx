@@ -87,7 +87,7 @@ const AppHeader: React.FC = () => {
               <span className="text-lg font-bold text-white">B</span>
             </div>
             <span className="text-base font-bold text-gray-800 dark:text-white 2xsm:text-lg">
-              Kelola Bengkel
+              Auto7
             </span>
           </Link>
 

@@ -139,7 +139,7 @@ export default function UserInfoCard() {
                     />
                   </div>
                 </div>
-              </div>
+              </div>ant
               <div className="mt-7">
                 <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
                   Personal Information
