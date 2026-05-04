@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
@@ -67,6 +67,11 @@ export default function NotificationDropdown({
     () => notifications.slice(0, 8),
     [notifications]
   );
+  const latestNotificationId = latestNotifications[0]?.id ?? "";
+
+  useEffect(() => {
+    setNotifying(Boolean(latestNotificationId));
+  }, [latestNotificationId]);
 
   function toggleDropdown() {
     setIsOpen((current) => !current);
