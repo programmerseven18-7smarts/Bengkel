@@ -13,6 +13,16 @@ const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin@Auto7";
 const mekanikPassword = process.env.SEED_MEKANIK_PASSWORD ?? "Mekanik@Auto7";
 const kasirPassword = process.env.SEED_KASIR_PASSWORD ?? "Kasir@Auto7";
 
+type PermissionLookup = {
+  id: string;
+  kode: string;
+};
+
+type RoleLookup = {
+  id: string;
+  kode: string;
+};
+
 const seedPermissions = async () => {
   const permissionRows = permissionResources.flatMap((resource) =>
     resource.actions.map((action) => ({
@@ -49,8 +59,11 @@ const seedRoles = async () => {
       kode: true,
     },
   });
-  const permissionByCode = new Map(
-    permissions.map((permission) => [permission.kode, permission.id])
+  const permissionByCode = new Map<string, string>(
+    (permissions as PermissionLookup[]).map((permission) => [
+      permission.kode,
+      permission.id,
+    ])
   );
 
   for (const roleSeed of defaultRoles) {
@@ -105,7 +118,9 @@ const seedUsers = async () => {
       nama: true,
     },
   });
-  const roleByCode = new Map(roles.map((role) => [role.kode, role.id]));
+  const roleByCode = new Map<string, string>(
+    (roles as RoleLookup[]).map((role) => [role.kode, role.id])
+  );
 
   const users = [
     {
