@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -12,10 +14,19 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Pagination from "@/components/tables/Pagination";
-import Link from "next/link";
-import { PlusIcon, PencilIcon, TrashBinIcon } from "@/icons";
+import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
+import { PencilIcon, TrashBinIcon } from "@/icons";
+import { deleteWorkOrderAction } from "@/lib/work-orders/actions";
 
-interface WorkOrder {
+type WorkOrderStatus =
+  | "DRAFT"
+  | "ANTRI"
+  | "DIKERJAKAN"
+  | "MENUNGGU_PART"
+  | "SELESAI"
+  | "BATAL";
+
+export interface WorkOrderRow {
   id: string;
   noWorkOrder: string;
   pelanggan: string;
@@ -23,134 +34,110 @@ interface WorkOrder {
   kendaraan: string;
   platNomor: string;
   keluhan: string;
+  mekanikId: string;
   mekanik: string;
-  status: "Antri" | "Dikerjakan" | "Menunggu Part" | "Selesai" | "Batal";
+  status: WorkOrderStatus;
   tanggal: string;
-  estimasi: string;
+  estimasi: number;
 }
 
-const workOrders: WorkOrder[] = [
-  {
-    id: "1",
-    noWorkOrder: "WO-2024-001",
-    pelanggan: "Budi Santoso",
-    noHp: "081234567890",
-    kendaraan: "Honda Beat",
-    platNomor: "B 1234 ABC",
-    keluhan: "Mesin brebet saat dingin",
-    mekanik: "Rudi",
-    status: "Dikerjakan",
-    tanggal: "30 Apr 2024",
-    estimasi: "Rp 350.000",
-  },
-  {
-    id: "2",
-    noWorkOrder: "WO-2024-002",
-    pelanggan: "Andi Wijaya",
-    noHp: "082345678901",
-    kendaraan: "Toyota Avanza",
-    platNomor: "D 7788 KA",
-    keluhan: "Servis berkala 20.000 km",
-    mekanik: "Dimas",
-    status: "Antri",
-    tanggal: "30 Apr 2024",
-    estimasi: "Rp 1.200.000",
-  },
-  {
-    id: "3",
-    noWorkOrder: "WO-2024-003",
-    pelanggan: "Siti Rahma",
-    noHp: "083456789012",
-    kendaraan: "Yamaha NMAX",
-    platNomor: "F 9921 ZZ",
-    keluhan: "Ganti kampas rem depan",
-    mekanik: "Ahmad",
-    status: "Menunggu Part",
-    tanggal: "29 Apr 2024",
-    estimasi: "Rp 250.000",
-  },
-  {
-    id: "4",
-    noWorkOrder: "WO-2024-004",
-    pelanggan: "Joko Prasetyo",
-    noHp: "084567890123",
-    kendaraan: "Honda Vario",
-    platNomor: "B 5678 DEF",
-    keluhan: "Tune up mesin",
-    mekanik: "Rudi",
-    status: "Selesai",
-    tanggal: "29 Apr 2024",
-    estimasi: "Rp 450.000",
-  },
-  {
-    id: "5",
-    noWorkOrder: "WO-2024-005",
-    pelanggan: "Dewi Lestari",
-    noHp: "085678901234",
-    kendaraan: "Suzuki Ertiga",
-    platNomor: "B 9012 GHI",
-    keluhan: "Cek kelistrikan",
-    mekanik: "Dimas",
-    status: "Batal",
-    tanggal: "28 Apr 2024",
-    estimasi: "Rp 150.000",
-  },
-  {
-    id: "6",
-    noWorkOrder: "WO-2024-006",
-    pelanggan: "Agus Hermawan",
-    noHp: "086789012345",
-    kendaraan: "Honda CBR 150",
-    platNomor: "B 3344 JKL",
-    keluhan: "Ganti oli dan filter",
-    mekanik: "Ahmad",
-    status: "Selesai",
-    tanggal: "28 Apr 2024",
-    estimasi: "Rp 180.000",
-  },
-];
+export interface WorkOrderOption {
+  value: string;
+  label: string;
+}
 
-const getStatusColor = (status: WorkOrder["status"]) => {
+interface WorkOrderListProps {
+  workOrders: WorkOrderRow[];
+  mekanikOptions: WorkOrderOption[];
+}
+
+const statusLabel = (status: WorkOrderStatus) => {
   switch (status) {
-    case "Antri":
+    case "DRAFT":
+      return "Draft";
+    case "ANTRI":
+      return "Antri";
+    case "DIKERJAKAN":
+      return "Dikerjakan";
+    case "MENUNGGU_PART":
+      return "Menunggu Part";
+    case "SELESAI":
+      return "Selesai";
+    case "BATAL":
+      return "Batal";
+  }
+};
+
+const getStatusColor = (status: WorkOrderStatus) => {
+  switch (status) {
+    case "DRAFT":
       return "light";
-    case "Dikerjakan":
+    case "ANTRI":
+      return "info";
+    case "DIKERJAKAN":
       return "primary";
-    case "Menunggu Part":
+    case "MENUNGGU_PART":
       return "warning";
-    case "Selesai":
+    case "SELESAI":
       return "success";
-    case "Batal":
+    case "BATAL":
       return "error";
-    default:
-      return "light";
   }
 };
 
 const statusOptions = [
   { value: "", label: "Semua Status" },
-  { value: "Antri", label: "Antri" },
-  { value: "Dikerjakan", label: "Dikerjakan" },
-  { value: "Menunggu Part", label: "Menunggu Part" },
-  { value: "Selesai", label: "Selesai" },
-  { value: "Batal", label: "Batal" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "ANTRI", label: "Antri" },
+  { value: "DIKERJAKAN", label: "Dikerjakan" },
+  { value: "MENUNGGU_PART", label: "Menunggu Part" },
+  { value: "SELESAI", label: "Selesai" },
+  { value: "BATAL", label: "Batal" },
 ];
 
-const mekanikOptions = [
-  { value: "", label: "Semua Mekanik" },
-  { value: "Rudi", label: "Rudi" },
-  { value: "Dimas", label: "Dimas" },
-  { value: "Ahmad", label: "Ahmad" },
-];
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
 
-export default function WorkOrderList() {
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+export default function WorkOrderList({
+  workOrders,
+  mekanikOptions,
+}: WorkOrderListProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [query, setQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedMekanik, setSelectedMekanik] = useState("");
+  const [deleteItem, setDeleteItem] = useState<WorkOrderRow | null>(null);
+
+  const filteredWorkOrders = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+
+    return workOrders.filter((order) => {
+      const text = `${order.noWorkOrder} ${order.pelanggan} ${order.noHp} ${order.kendaraan} ${order.platNomor} ${order.keluhan} ${order.mekanik}`.toLowerCase();
+      const matchKeyword = !keyword || text.includes(keyword);
+      const matchStatus = !selectedStatus || order.status === selectedStatus;
+      const matchMekanik = !selectedMekanik || order.mekanikId === selectedMekanik;
+      return matchKeyword && matchStatus && matchMekanik;
+    });
+  }, [query, selectedMekanik, selectedStatus, workOrders]);
+
+  const filterMekanikOptions = useMemo(
+    () => [{ value: "", label: "Semua Mekanik" }, ...mekanikOptions],
+    [mekanikOptions]
+  );
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      {/* Header */}
       <div className="flex flex-col gap-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:w-64">
@@ -158,15 +145,12 @@ export default function WorkOrderList() {
               type="text"
               placeholder="Cari work order..."
               className="w-full"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
             />
           </div>
           <Link href="/servis/work-order/create">
-            <Button
-              size="md"
-              variant="primary"
-              startIcon={<PlusIcon className="size-5" />}
-              className="w-full sm:w-auto"
-            >
+            <Button size="md" variant="primary" className="w-full sm:w-auto">
               Buat Work Order
             </Button>
           </Link>
@@ -180,9 +164,9 @@ export default function WorkOrderList() {
               defaultValue={selectedStatus}
             />
           </div>
-          <div className="flex-1 sm:w-40 sm:flex-none">
+          <div className="flex-1 sm:w-48 sm:flex-none">
             <Select
-              options={mekanikOptions}
+              options={filterMekanikOptions}
               placeholder="Mekanik"
               onChange={setSelectedMekanik}
               defaultValue={selectedMekanik}
@@ -191,12 +175,11 @@ export default function WorkOrderList() {
         </div>
       </div>
 
-      {/* Mobile Card View */}
       <div className="block lg:hidden">
         <div className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-          {workOrders.map((order) => (
+          {filteredWorkOrders.map((order) => (
             <div key={order.id} className="p-4">
-              <div className="flex items-start justify-between mb-3">
+              <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                   <Link
                     href={`/servis/work-order/${order.id}`}
@@ -205,52 +188,41 @@ export default function WorkOrderList() {
                     {order.noWorkOrder}
                   </Link>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {order.tanggal}
+                    {formatDate(order.tanggal)}
                   </p>
                 </div>
                 <Badge size="sm" color={getStatusColor(order.status)}>
-                  {order.status}
+                  {statusLabel(order.status)}
                 </Badge>
               </div>
-              
+
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Pelanggan</span>
-                  <span className="text-gray-800 dark:text-white/90">{order.pelanggan}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">No. HP</span>
-                  <span className="text-gray-800 dark:text-white/90">{order.noHp}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Kendaraan</span>
-                  <span className="text-gray-800 dark:text-white/90">{order.kendaraan}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Plat Nomor</span>
-                  <span className="text-gray-800 dark:text-white/90">{order.platNomor}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Mekanik</span>
-                  <span className="text-gray-800 dark:text-white/90">{order.mekanik}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Estimasi</span>
-                  <span className="font-medium text-gray-800 dark:text-white/90">{order.estimasi}</span>
-                </div>
+                <MobileItem label="Pelanggan" value={order.pelanggan} />
+                <MobileItem label="No. HP" value={order.noHp || "-"} />
+                <MobileItem label="Kendaraan" value={order.kendaraan} />
+                <MobileItem label="Plat Nomor" value={order.platNomor} />
+                <MobileItem label="Mekanik" value={order.mekanik || "-"} />
+                <MobileItem label="Estimasi" value={formatCurrency(order.estimasi)} strong />
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Keluhan</span>
-                  <p className="text-gray-800 dark:text-white/90 mt-1">{order.keluhan}</p>
+                  <p className="mt-1 text-gray-800 dark:text-white/90">{order.keluhan || "-"}</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-white/[0.05]">
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-gray-100 pt-3 dark:border-white/[0.05]">
                 <Link href={`/servis/work-order/${order.id}`}>
-                  <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
+                  <button
+                    type="button"
+                    className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400"
+                  >
                     <PencilIcon className="size-5" />
                   </button>
                 </Link>
-                <button className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => setDeleteItem(order)}
+                  className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400"
+                >
                   <TrashBinIcon className="size-5" />
                 </button>
               </div>
@@ -259,42 +231,39 @@ export default function WorkOrderList() {
         </div>
       </div>
 
-      {/* Desktop Table View */}
       <div className="hidden lg:block">
         <div className="max-w-full overflow-x-auto">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  No. Work Order
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  Pelanggan
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  Kendaraan
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  Keluhan
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  Mekanik
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  Status
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  Estimasi
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                  Aksi
-                </TableCell>
+                {[
+                  "No",
+                  "No. Work Order",
+                  "Pelanggan",
+                  "Kendaraan",
+                  "Keluhan",
+                  "Mekanik",
+                  "Status",
+                  "Estimasi",
+                  "Aksi",
+                ].map((header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    {header}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHeader>
 
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {workOrders.map((order) => (
+              {filteredWorkOrders.map((order, index) => (
                 <TableRow key={order.id}>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                    {index + 1}
+                  </TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <Link
                       href={`/servis/work-order/${order.id}`}
@@ -303,7 +272,7 @@ export default function WorkOrderList() {
                       {order.noWorkOrder}
                     </Link>
                     <p className="text-gray-500 text-theme-xs dark:text-gray-400">
-                      {order.tanggal}
+                      {formatDate(order.tanggal)}
                     </p>
                   </TableCell>
                   <TableCell className="px-5 py-4 text-start">
@@ -311,7 +280,7 @@ export default function WorkOrderList() {
                       {order.pelanggan}
                     </p>
                     <p className="text-gray-500 text-theme-xs dark:text-gray-400">
-                      {order.noHp}
+                      {order.noHp || "-"}
                     </p>
                   </TableCell>
                   <TableCell className="px-5 py-4 text-start">
@@ -322,28 +291,35 @@ export default function WorkOrderList() {
                       {order.platNomor}
                     </p>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400 max-w-[200px] truncate">
-                    {order.keluhan}
+                  <TableCell className="max-w-[200px] truncate px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                    {order.keluhan || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm dark:text-white/90">
-                    {order.mekanik}
+                    {order.mekanik || "-"}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <Badge size="sm" color={getStatusColor(order.status)}>
-                      {order.status}
+                      {statusLabel(order.status)}
                     </Badge>
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">
-                    {order.estimasi}
+                    {formatCurrency(order.estimasi)}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <div className="flex items-center gap-2">
                       <Link href={`/servis/work-order/${order.id}`}>
-                        <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
+                        <button
+                          type="button"
+                          className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400"
+                        >
                           <PencilIcon className="size-5" />
                         </button>
                       </Link>
-                      <button className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-400">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteItem(order)}
+                        className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-400"
+                      >
                         <TrashBinIcon className="size-5" />
                       </button>
                     </div>
@@ -355,17 +331,39 @@ export default function WorkOrderList() {
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-white/[0.05] sm:p-6">
+      <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-white/[0.05] sm:p-6">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Menampilkan 1-6 dari 6 data
+          Menampilkan {filteredWorkOrders.length} dari {workOrders.length} data
         </p>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={1}
-          onPageChange={setCurrentPage}
-        />
+        <Pagination currentPage={currentPage} totalPages={1} onPageChange={setCurrentPage} />
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteItem}
+        itemName={deleteItem?.noWorkOrder}
+        hiddenFields={{ id: deleteItem?.id }}
+        formAction={deleteWorkOrderAction}
+        onClose={() => setDeleteItem(null)}
+      />
+    </div>
+  );
+}
+
+function MobileItem({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <span className={`${strong ? "font-medium" : ""} text-gray-800 dark:text-white/90`}>
+        {value}
+      </span>
     </div>
   );
 }

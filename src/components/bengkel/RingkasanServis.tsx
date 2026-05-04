@@ -10,9 +10,22 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 });
 
-export default function RingkasanServis() {
-  const series = [24, 8, 5, 3];
+interface RingkasanServisProps {
+  selesai: number;
+  dikerjakan: number;
+  antri: number;
+  menungguPart: number;
+}
+
+export default function RingkasanServis({
+  selesai,
+  dikerjakan,
+  antri,
+  menungguPart,
+}: RingkasanServisProps) {
+  const series = [selesai, dikerjakan, antri, menungguPart];
   const labels = ["Selesai", "Dikerjakan", "Antri", "Menunggu Part"];
+  const total = series.reduce((sum, value) => sum + value, 0);
 
   const options: ApexOptions = {
     colors: ["#12b76a", "#465fff", "#98a2b3", "#f79009"],
@@ -47,7 +60,7 @@ export default function RingkasanServis() {
               fontSize: "14px",
               fontWeight: 500,
               color: "#667085",
-              formatter: () => "40",
+              formatter: () => `${total}`,
             },
           },
         },
@@ -101,7 +114,7 @@ export default function RingkasanServis() {
             </p>
           </div>
           <div className="relative inline-block">
-            <button onClick={toggleDropdown} className="dropdown-toggle">
+            <button type="button" onClick={toggleDropdown} className="dropdown-toggle">
               <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" />
             </button>
             <Dropdown
@@ -142,7 +155,7 @@ export default function RingkasanServis() {
             Selesai Hari Ini
           </p>
           <p className="flex items-center justify-center gap-1 text-base font-semibold text-success-600 dark:text-success-500 sm:text-lg">
-            24
+            {selesai}
           </p>
         </div>
 
@@ -153,7 +166,7 @@ export default function RingkasanServis() {
             Sedang Proses
           </p>
           <p className="flex items-center justify-center gap-1 text-base font-semibold text-brand-500 dark:text-brand-400 sm:text-lg">
-            8
+            {dikerjakan}
           </p>
         </div>
 
@@ -164,7 +177,7 @@ export default function RingkasanServis() {
             Menunggu
           </p>
           <p className="flex items-center justify-center gap-1 text-base font-semibold text-warning-600 dark:text-warning-500 sm:text-lg">
-            8
+            {antri + menungguPart}
           </p>
         </div>
       </div>

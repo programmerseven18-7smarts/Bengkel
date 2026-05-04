@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -11,154 +13,192 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Pagination from "@/components/tables/Pagination";
-import { PlusIcon, PencilIcon, TrashBinIcon, EyeIcon } from "@/icons";
-import Link from "next/link";
+import { PencilIcon, TrashBinIcon, EyeIcon } from "@/icons";
+import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
+import MasterRecordModal, {
+  type MasterRecordData,
+  type MasterRecordField,
+} from "./MasterRecordModal";
+import {
+  createKendaraanAction,
+  deleteKendaraanAction,
+  updateKendaraanAction,
+} from "@/lib/masters/actions";
 
-interface Kendaraan {
+export interface MasterOption {
+  value: string;
+  label: string;
+}
+
+export interface KendaraanRow {
   id: string;
   platNomor: string;
+  merkId: string;
   merk: string;
   tipe: string;
   tahun: string;
   warna: string;
   noRangka: string;
   noMesin: string;
+  pelangganId: string;
   pemilik: string;
   totalServis: number;
 }
 
-const kendaraanData: Kendaraan[] = [
-  {
-    id: "1",
-    platNomor: "B 1234 ABC",
-    merk: "Honda",
-    tipe: "Beat",
-    tahun: "2022",
-    warna: "Merah",
-    noRangka: "MH1JFZ11XNK123456",
-    noMesin: "JFZ1E-1234567",
-    pemilik: "Budi Santoso",
-    totalServis: 5,
-  },
-  {
-    id: "2",
-    platNomor: "D 7788 KA",
-    merk: "Toyota",
-    tipe: "Avanza",
-    tahun: "2020",
-    warna: "Putih",
-    noRangka: "MHF1JE4G4LK654321",
-    noMesin: "1NRF-K543210",
-    pemilik: "Andi Wijaya",
-    totalServis: 3,
-  },
-  {
-    id: "3",
-    platNomor: "F 9921 ZZ",
-    merk: "Yamaha",
-    tipe: "NMAX",
-    tahun: "2023",
-    warna: "Hitam",
-    noRangka: "MH3SG5310PJ789012",
-    noMesin: "G3X1E-0987654",
-    pemilik: "Siti Rahma",
-    totalServis: 2,
-  },
-  {
-    id: "4",
-    platNomor: "B 5678 DEF",
-    merk: "Honda",
-    tipe: "Vario",
-    tahun: "2021",
-    warna: "Biru",
-    noRangka: "MH1JFZ22XMK345678",
-    noMesin: "JFZ2E-7654321",
-    pemilik: "Joko Prasetyo",
-    totalServis: 8,
-  },
-  {
-    id: "5",
-    platNomor: "B 9012 GHI",
-    merk: "Suzuki",
-    tipe: "Ertiga",
-    tahun: "2019",
-    warna: "Silver",
-    noRangka: "MHYESL41SKJ567890",
-    noMesin: "K14B-1357924",
-    pemilik: "Dewi Lestari",
-    totalServis: 1,
-  },
-];
+interface KendaraanListProps {
+  kendaraan: KendaraanRow[];
+  pelangganOptions: MasterOption[];
+  merkOptions: MasterOption[];
+}
 
-const merkOptions = [
-  { value: "", label: "Semua Merk" },
-  { value: "Honda", label: "Honda" },
-  { value: "Toyota", label: "Toyota" },
-  { value: "Yamaha", label: "Yamaha" },
-  { value: "Suzuki", label: "Suzuki" },
-];
-
-export default function KendaraanList() {
+export default function KendaraanList({
+  kendaraan,
+  pelangganOptions,
+  merkOptions,
+}: KendaraanListProps) {
+  const items = kendaraan;
+  const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedMerk, setSelectedMerk] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<KendaraanRow | null>(null);
+  const [deleteItem, setDeleteItem] = useState<KendaraanRow | null>(null);
+
+  const filterMerkOptions = useMemo(
+    () => [{ value: "", label: "Semua Merk" }, ...merkOptions],
+    [merkOptions]
+  );
+
+  const filteredItems = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+
+    return items.filter((item) => {
+      const text = `${item.platNomor} ${item.merk} ${item.tipe} ${item.warna} ${item.noRangka} ${item.noMesin} ${item.pemilik}`.toLowerCase();
+      const matchKeyword = !keyword || text.includes(keyword);
+      const matchMerk = !selectedMerk || item.merkId === selectedMerk;
+      return matchKeyword && matchMerk;
+    });
+  }, [items, query, selectedMerk]);
+
+  const fields: MasterRecordField[] = [
+    { name: "platNomor", label: "Plat Nomor", placeholder: "B 1234 ABC" },
+    {
+      name: "merkId",
+      label: "Merk",
+      type: "select",
+      options: merkOptions,
+    },
+    { name: "tipe", label: "Tipe / Model", placeholder: "Beat / Avanza" },
+    { name: "tahun", label: "Tahun", type: "number", placeholder: "2024" },
+    { name: "warna", label: "Warna", placeholder: "Hitam" },
+    {
+      name: "pelangganId",
+      label: "Pemilik",
+      type: "select",
+      options: pelangganOptions,
+    },
+    { name: "noRangka", label: "No. Rangka", placeholder: "Nomor rangka" },
+    { name: "noMesin", label: "No. Mesin", placeholder: "Nomor mesin" },
+  ];
+
+  const initialValues = selectedItem
+    ? ({
+        ...selectedItem,
+        tahun: selectedItem.tahun ? Number(selectedItem.tahun) : undefined,
+      } satisfies MasterRecordData)
+    : ({} satisfies MasterRecordData);
+
+  const openEdit = (item: KendaraanRow) => {
+    setSelectedItem(item);
+    setIsFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setIsFormOpen(false);
+    setSelectedItem(null);
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      {/* Header */}
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="w-full sm:w-64">
-            <Input type="text" placeholder="Cari kendaraan..." className="w-full" />
+            <Input
+              type="text"
+              placeholder="Cari kendaraan..."
+              className="w-full"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
           </div>
-          <div className="w-full sm:w-40">
-            <Select options={merkOptions} placeholder="Merk" onChange={setSelectedMerk} defaultValue={selectedMerk} />
+          <div className="w-full sm:w-48">
+            <Select
+              options={filterMerkOptions}
+              placeholder="Merk"
+              onChange={setSelectedMerk}
+              defaultValue={selectedMerk}
+            />
           </div>
         </div>
-        <Button size="md" variant="primary" startIcon={<PlusIcon className="size-5" />}>
+        <Button
+          size="md"
+          variant="primary"
+          onClick={() => {
+            setSelectedItem(null);
+            setIsFormOpen(true);
+          }}
+        >
           Tambah Kendaraan
         </Button>
       </div>
 
-      {/* Mobile Card View */}
       <div className="block lg:hidden">
         <div className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-          {kendaraanData.map((kendaraan) => (
-            <div key={kendaraan.id} className="p-4">
-              <div className="flex items-start justify-between mb-3">
+          {filteredItems.map((item) => (
+            <div key={item.id} className="p-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium text-gray-800 dark:text-white/90">{kendaraan.platNomor}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{kendaraan.merk} {kendaraan.tipe}</p>
+                  <p className="font-medium text-gray-800 dark:text-white/90">
+                    {item.platNomor}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {item.merk || "-"} {item.tipe}
+                  </p>
                 </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">{kendaraan.tahun}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {item.tahun || "-"}
+                </span>
               </div>
-              
+
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-gray-500 dark:text-gray-400">Warna</span>
-                  <span className="text-gray-800 dark:text-white/90">{kendaraan.warna}</span>
+                  <span className="text-gray-800 dark:text-white/90">{item.warna || "-"}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-gray-500 dark:text-gray-400">Pemilik</span>
-                  <span className="text-gray-800 dark:text-white/90">{kendaraan.pemilik}</span>
+                  <span className="text-gray-800 dark:text-white/90">{item.pemilik}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-gray-500 dark:text-gray-400">Total Servis</span>
-                  <span className="font-medium text-gray-800 dark:text-white/90">{kendaraan.totalServis}x</span>
+                  <span className="font-medium text-gray-800 dark:text-white/90">{item.totalServis}x</span>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">No. Rangka</span>
-                  <p className="font-mono text-xs text-gray-800 dark:text-white/90 mt-1">{kendaraan.noRangka}</p>
+                  <p className="mt-1 font-mono text-xs text-gray-800 dark:text-white/90">
+                    {item.noRangka || "-"}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-white/[0.05]">
-                <Link href={`/master/kendaraan/${kendaraan.id}`} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-gray-100 pt-3 dark:border-white/[0.05]">
+                <Link href={`/master/kendaraan/${item.id}`} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
                   <EyeIcon className="size-5" />
                 </Link>
-                <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
+                <button type="button" onClick={() => openEdit(item)} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400">
                   <PencilIcon className="size-5" />
                 </button>
-                <button className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400">
+                <button type="button" onClick={() => setDeleteItem(item)} className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400">
                   <TrashBinIcon className="size-5" />
                 </button>
               </div>
@@ -167,43 +207,58 @@ export default function KendaraanList() {
         </div>
       </div>
 
-      {/* Desktop Table View */}
       <div className="hidden lg:block">
         <div className="max-w-full overflow-x-auto">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Plat Nomor</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Merk / Tipe</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Tahun</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Warna</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">No. Rangka</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Pemilik</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Total Servis</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Aksi</TableCell>
+                {[
+                  "No",
+                  "Plat Nomor",
+                  "Merk / Tipe",
+                  "Tahun",
+                  "Warna",
+                  "No. Rangka",
+                  "Pemilik",
+                  "Total Servis",
+                  "Aksi",
+                ].map((header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className={`px-5 py-3 font-medium text-gray-500 text-theme-xs dark:text-gray-400 ${
+                      header === "Total Servis" ? "text-center" : "text-start"
+                    }`}
+                  >
+                    {header}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {kendaraanData.map((kendaraan) => (
-                <TableRow key={kendaraan.id}>
-                  <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">{kendaraan.platNomor}</TableCell>
+              {filteredItems.map((item, index) => (
+                <TableRow key={item.id}>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{index + 1}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">{item.platNomor}</TableCell>
                   <TableCell className="px-5 py-4 text-start">
-                    <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">{kendaraan.merk} {kendaraan.tipe}</p>
+                    <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                      {item.merk || "-"} {item.tipe}
+                    </p>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{kendaraan.tahun}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{kendaraan.warna}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-xs font-mono dark:text-gray-400">{kendaraan.noRangka}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm dark:text-white/90">{kendaraan.pemilik}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm dark:text-white/90">{kendaraan.totalServis}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.tahun || "-"}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.warna || "-"}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start font-mono text-theme-xs dark:text-gray-400">{item.noRangka || "-"}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm dark:text-white/90">{item.pemilik}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm dark:text-white/90">{item.totalServis}</TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <div className="flex items-center gap-2">
-                      <Link href={`/master/kendaraan/${kendaraan.id}`} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
+                      <Link href={`/master/kendaraan/${item.id}`} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
                         <EyeIcon className="size-5" />
                       </Link>
-                      <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
+                      <button type="button" onClick={() => openEdit(item)} className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
                         <PencilIcon className="size-5" />
                       </button>
-                      <button className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-400">
+                      <button type="button" onClick={() => setDeleteItem(item)} className="p-2 text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-400">
                         <TrashBinIcon className="size-5" />
                       </button>
                     </div>
@@ -215,11 +270,30 @@ export default function KendaraanList() {
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-white/[0.05] sm:p-6">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Menampilkan 1-5 dari 5 data</p>
+      <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-white/[0.05] sm:p-6">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Menampilkan {filteredItems.length} dari {items.length} data
+        </p>
         <Pagination currentPage={currentPage} totalPages={1} onPageChange={setCurrentPage} />
       </div>
+
+      <MasterRecordModal
+        isOpen={isFormOpen}
+        title={selectedItem ? "Edit Kendaraan" : "Tambah Kendaraan"}
+        description="Data kendaraan dipakai pada work order, riwayat servis, dan reminder."
+        fields={fields}
+        initialValues={initialValues}
+        hiddenFields={selectedItem ? { id: selectedItem.id } : undefined}
+        formAction={selectedItem ? updateKendaraanAction : createKendaraanAction}
+        onClose={closeForm}
+      />
+      <ConfirmDeleteModal
+        isOpen={!!deleteItem}
+        itemName={deleteItem?.platNomor}
+        hiddenFields={{ id: deleteItem?.id }}
+        formAction={deleteKendaraanAction}
+        onClose={() => setDeleteItem(null)}
+      />
     </div>
   );
 }

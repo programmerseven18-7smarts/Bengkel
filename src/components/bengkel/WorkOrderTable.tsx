@@ -1,4 +1,6 @@
 "use client";
+
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -7,93 +9,75 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import Link from "next/link";
 
-interface WorkOrder {
+export type DashboardWorkOrderStatus =
+  | "DRAFT"
+  | "ANTRI"
+  | "DIKERJAKAN"
+  | "MENUNGGU_PART"
+  | "SELESAI"
+  | "BATAL";
+
+export interface DashboardWorkOrderRow {
   id: string;
   noWorkOrder: string;
   pelanggan: string;
   kendaraan: string;
   platNomor: string;
   mekanik: string;
-  status: "Antri" | "Dikerjakan" | "Menunggu Part" | "Selesai" | "Batal";
+  status: DashboardWorkOrderStatus;
   tanggal: string;
 }
 
-const workOrders: WorkOrder[] = [
-  {
-    id: "1",
-    noWorkOrder: "WO-2024-001",
-    pelanggan: "Budi Santoso",
-    kendaraan: "Honda Beat",
-    platNomor: "B 1234 ABC",
-    mekanik: "Rudi",
-    status: "Dikerjakan",
-    tanggal: "30 Apr 2024",
-  },
-  {
-    id: "2",
-    noWorkOrder: "WO-2024-002",
-    pelanggan: "Andi Wijaya",
-    kendaraan: "Toyota Avanza",
-    platNomor: "D 7788 KA",
-    mekanik: "Dimas",
-    status: "Antri",
-    tanggal: "30 Apr 2024",
-  },
-  {
-    id: "3",
-    noWorkOrder: "WO-2024-003",
-    pelanggan: "Siti Rahma",
-    kendaraan: "Yamaha NMAX",
-    platNomor: "F 9921 ZZ",
-    mekanik: "Ahmad",
-    status: "Menunggu Part",
-    tanggal: "29 Apr 2024",
-  },
-  {
-    id: "4",
-    noWorkOrder: "WO-2024-004",
-    pelanggan: "Joko Prasetyo",
-    kendaraan: "Honda Vario",
-    platNomor: "B 5678 DEF",
-    mekanik: "Rudi",
-    status: "Selesai",
-    tanggal: "29 Apr 2024",
-  },
-  {
-    id: "5",
-    noWorkOrder: "WO-2024-005",
-    pelanggan: "Dewi Lestari",
-    kendaraan: "Suzuki Ertiga",
-    platNomor: "B 9012 GHI",
-    mekanik: "Dimas",
-    status: "Batal",
-    tanggal: "28 Apr 2024",
-  },
-];
+interface WorkOrderTableProps {
+  workOrders: DashboardWorkOrderRow[];
+}
 
-const getStatusColor = (status: WorkOrder["status"]) => {
+const statusLabel = (status: DashboardWorkOrderStatus) => {
   switch (status) {
-    case "Antri":
+    case "ANTRI":
+      return "Antri";
+    case "DIKERJAKAN":
+      return "Dikerjakan";
+    case "MENUNGGU_PART":
+      return "Menunggu Part";
+    case "SELESAI":
+      return "Selesai";
+    case "BATAL":
+      return "Batal";
+    default:
+      return "Draft";
+  }
+};
+
+const getStatusColor = (status: DashboardWorkOrderStatus) => {
+  switch (status) {
+    case "ANTRI":
       return "light";
-    case "Dikerjakan":
+    case "DIKERJAKAN":
       return "primary";
-    case "Menunggu Part":
+    case "MENUNGGU_PART":
       return "warning";
-    case "Selesai":
+    case "SELESAI":
       return "success";
-    case "Batal":
+    case "BATAL":
       return "error";
     default:
       return "light";
   }
 };
 
-export default function WorkOrderTable() {
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+export default function WorkOrderTable({ workOrders }: WorkOrderTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
-      <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Work Order Terbaru
@@ -111,84 +95,78 @@ export default function WorkOrderTable() {
       </div>
       <div className="max-w-full overflow-x-auto">
         <Table>
-          <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
+          <TableHeader className="border-y border-gray-100 dark:border-gray-800">
             <TableRow>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                No. Work Order
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Pelanggan
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Kendaraan
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Mekanik
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Status
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Tanggal
-              </TableCell>
+              {[
+                "No",
+                "No. Work Order",
+                "Pelanggan",
+                "Kendaraan",
+                "Mekanik",
+                "Status",
+                "Tanggal",
+              ].map((header) => (
+                <TableCell
+                  key={header}
+                  isHeader
+                  className="py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                >
+                  {header}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHeader>
 
           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {workOrders.map((order) => (
+            {workOrders.map((order, index) => (
               <TableRow key={order.id}>
+                <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {index + 1}
+                </TableCell>
                 <TableCell className="py-3">
                   <Link
                     href={`/servis/work-order/${order.id}`}
-                    className="font-medium text-brand-500 hover:text-brand-600 text-theme-sm"
+                    className="text-theme-sm font-medium text-brand-500 hover:text-brand-600"
                   >
                     {order.noWorkOrder}
                   </Link>
                 </TableCell>
-                <TableCell className="py-3 text-gray-800 text-theme-sm dark:text-white/90">
+                <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">
                   {order.pelanggan}
                 </TableCell>
                 <TableCell className="py-3">
                   <div>
-                    <p className="text-gray-800 text-theme-sm dark:text-white/90">
+                    <p className="text-theme-sm text-gray-800 dark:text-white/90">
                       {order.kendaraan}
                     </p>
-                    <span className="text-gray-500 text-theme-xs dark:text-gray-400">
+                    <span className="text-theme-xs text-gray-500 dark:text-gray-400">
                       {order.platNomor}
                     </span>
                   </div>
                 </TableCell>
-                <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
+                <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
                   {order.mekanik}
                 </TableCell>
                 <TableCell className="py-3">
                   <Badge size="sm" color={getStatusColor(order.status)}>
-                    {order.status}
+                    {statusLabel(order.status)}
                   </Badge>
                 </TableCell>
-                <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                  {order.tanggal}
+                <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {formatDate(order.tanggal)}
                 </TableCell>
               </TableRow>
             ))}
+            {workOrders.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="py-10 text-center text-theme-sm text-gray-500 dark:text-gray-400"
+                >
+                  Belum ada work order.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

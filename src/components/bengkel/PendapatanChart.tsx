@@ -10,7 +10,17 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 });
 
-export default function PendapatanChart() {
+interface PendapatanChartProps {
+  categories: string[];
+  jasaData: number[];
+  sparepartData: number[];
+}
+
+export default function PendapatanChart({
+  categories,
+  jasaData,
+  sparepartData,
+}: PendapatanChartProps) {
   const options: ApexOptions = {
     colors: ["#465fff", "#10b981"],
     chart: {
@@ -38,20 +48,7 @@ export default function PendapatanChart() {
       colors: ["transparent"],
     },
     xaxis: {
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "Mei",
-        "Jun",
-        "Jul",
-        "Ags",
-        "Sep",
-        "Okt",
-        "Nov",
-        "Des",
-      ],
+      categories,
       axisBorder: {
         show: false,
       },
@@ -96,11 +93,11 @@ export default function PendapatanChart() {
   const series = [
     {
       name: "Pendapatan Servis",
-      data: [45000000, 52000000, 48000000, 62000000, 55000000, 68000000, 72000000, 65000000, 58000000, 75000000, 82000000, 78000000],
+      data: jasaData,
     },
     {
       name: "Penjualan Sparepart",
-      data: [28000000, 32000000, 25000000, 35000000, 30000000, 42000000, 38000000, 35000000, 40000000, 45000000, 48000000, 52000000],
+      data: sparepartData,
     },
   ];
 
@@ -127,7 +124,7 @@ export default function PendapatanChart() {
         </div>
 
         <div className="relative inline-block">
-          <button onClick={toggleDropdown} className="dropdown-toggle">
+          <button type="button" onClick={toggleDropdown} className="dropdown-toggle">
             <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" />
           </button>
           <Dropdown

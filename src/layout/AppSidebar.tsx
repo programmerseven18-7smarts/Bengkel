@@ -1,25 +1,36 @@
 "use client";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import {
   ChevronDownIcon,
+  DatabaseIcon,
   GridIcon,
   HorizontaLDots,
-  WrenchIcon,
   InventoryIcon,
-  WalletIcon,
-  DatabaseIcon,
+  LockIcon,
+  ReceiptIcon,
   ReportIcon,
+  WalletIcon,
+  WrenchIcon,
 } from "../icons/index";
-
+import { hasPermission, makePermissionCode } from "@/lib/access-control";
+import type { AuthUser } from "@/lib/auth/types";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  permission?: string;
+  subItems?: {
+    name: string;
+    path: string;
+    permission: string;
+    pro?: boolean;
+    new?: boolean;
+  }[];
 };
 
 const navItems: NavItem[] = [
@@ -27,36 +38,126 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/",
+    permission: makePermissionCode("dashboard", "view"),
   },
   {
     icon: <WrenchIcon />,
     name: "Servis",
     subItems: [
-      { name: "Antrian & Jadwal", path: "/servis/antrian-jadwal", pro: false },
-      { name: "Work Order", path: "/servis/work-order", pro: false },
-      { name: "Riwayat Servis", path: "/servis/riwayat", pro: false },
+      {
+        name: "Antrian & Jadwal",
+        path: "/servis/antrian-jadwal",
+        permission: makePermissionCode("antrian_jadwal", "view"),
+        pro: false,
+      },
+      {
+        name: "Work Order",
+        path: "/servis/work-order",
+        permission: makePermissionCode("work_order", "view"),
+        pro: false,
+      },
+      {
+        name: "Riwayat Servis",
+        path: "/servis/riwayat",
+        permission: makePermissionCode("riwayat_servis", "view"),
+        pro: false,
+      },
+      {
+        name: "Reminder Servis",
+        path: "/servis/reminder",
+        permission: makePermissionCode("reminder_servis", "view"),
+        pro: false,
+      },
     ],
   },
   {
     icon: <InventoryIcon />,
     name: "Inventory",
     subItems: [
-      { name: "Sparepart", path: "/inventory/sparepart", pro: false },
-      { name: "Stok Masuk", path: "/inventory/stok-masuk", pro: false },
-      { name: "Stok Keluar", path: "/inventory/stok-keluar", pro: false },
-      { name: "Mutasi Stok", path: "/inventory/mutasi", pro: false },
-      { name: "Stok Minimum", path: "/inventory/stok-minimum", pro: false },
+      {
+        name: "Sparepart",
+        path: "/inventory/sparepart",
+        permission: makePermissionCode("sparepart", "view"),
+        pro: false,
+      },
+      {
+        name: "Stok Masuk",
+        path: "/inventory/stok-masuk",
+        permission: makePermissionCode("stok_masuk", "view"),
+        pro: false,
+      },
+      {
+        name: "Stok Keluar",
+        path: "/inventory/stok-keluar",
+        permission: makePermissionCode("stok_keluar", "view"),
+        pro: false,
+      },
+      {
+        name: "Mutasi Stok",
+        path: "/inventory/mutasi",
+        permission: makePermissionCode("mutasi_stok", "view"),
+        pro: false,
+      },
+      {
+        name: "Stok Minimum",
+        path: "/inventory/stok-minimum",
+        permission: makePermissionCode("stok_minimum", "view"),
+        pro: false,
+      },
     ],
   },
-
+  {
+    icon: <ReceiptIcon />,
+    name: "Pembelian",
+    subItems: [
+      {
+        name: "Purchase Order",
+        path: "/pembelian/purchase-order",
+        permission: makePermissionCode("purchase_order", "view"),
+        pro: false,
+      },
+      {
+        name: "Penerimaan Barang",
+        path: "/pembelian/penerimaan-barang",
+        permission: makePermissionCode("penerimaan_barang", "view"),
+        pro: false,
+      },
+      {
+        name: "Retur Pembelian",
+        path: "/pembelian/retur-pembelian",
+        permission: makePermissionCode("retur_pembelian", "view"),
+        pro: false,
+      },
+    ],
+  },
   {
     icon: <WalletIcon />,
     name: "Keuangan",
     subItems: [
-      { name: "Invoice", path: "/keuangan/invoice", pro: false },
-      { name: "Pembayaran", path: "/keuangan/pembayaran", pro: false },
-      { name: "Kas & Bank", path: "/keuangan/kas-bank", pro: false },
-      { name: "Piutang", path: "/keuangan/piutang", pro: false },
+      {
+        name: "Invoice",
+        path: "/keuangan/invoice",
+        permission: makePermissionCode("invoice", "view"),
+        pro: false,
+      },
+      {
+        name: "Pembayaran",
+        path: "/keuangan/pembayaran",
+        permission: makePermissionCode("pembayaran", "view"),
+        pro: false,
+      },
+      {
+        name: "Kas & Bank",
+        path: "/keuangan/kas-bank",
+        permission: makePermissionCode("kas_bank", "view"),
+        pro: false,
+      },
+      {
+        name: "Piutang",
+        path: "/keuangan/piutang",
+        permission: makePermissionCode("piutang", "view"),
+        pro: false,
+      },
     ],
   },
 ];
@@ -66,40 +167,233 @@ const othersItems: NavItem[] = [
     icon: <DatabaseIcon />,
     name: "Master Data",
     subItems: [
-      { name: "Pelanggan", path: "/master/pelanggan", pro: false },
-      { name: "Kendaraan", path: "/master/kendaraan", pro: false },
-      { name: "Mekanik", path: "/master/mekanik", pro: false },
-      { name: "Supplier", path: "/master/supplier", pro: false },
-      { name: "Jasa Servis", path: "/master/jasa-servis", pro: false },
+      {
+        name: "Pelanggan",
+        path: "/master/pelanggan",
+        permission: makePermissionCode("pelanggan", "view"),
+        pro: false,
+      },
+      {
+        name: "Kendaraan",
+        path: "/master/kendaraan",
+        permission: makePermissionCode("kendaraan", "view"),
+        pro: false,
+      },
+      {
+        name: "Mekanik",
+        path: "/master/mekanik",
+        permission: makePermissionCode("mekanik", "view"),
+        pro: false,
+      },
+      {
+        name: "Supplier",
+        path: "/master/supplier",
+        permission: makePermissionCode("supplier", "view"),
+        pro: false,
+      },
+      {
+        name: "Jasa Servis",
+        path: "/master/jasa-servis",
+        permission: makePermissionCode("jasa_servis", "view"),
+        pro: false,
+      },
+      {
+        name: "Paket Servis",
+        path: "/master/paket-servis",
+        permission: makePermissionCode("paket_servis", "view"),
+        pro: false,
+      },
+      {
+        name: "Kategori Sparepart",
+        path: "/master/kategori-sparepart",
+        permission: makePermissionCode("kategori_sparepart", "view"),
+        pro: false,
+      },
+      {
+        name: "Kategori Jasa",
+        path: "/master/kategori-jasa-servis",
+        permission: makePermissionCode("kategori_jasa_servis", "view"),
+        pro: false,
+      },
+      {
+        name: "Satuan",
+        path: "/master/satuan",
+        permission: makePermissionCode("satuan", "view"),
+        pro: false,
+      },
+      {
+        name: "Lokasi Stok",
+        path: "/master/lokasi-stok",
+        permission: makePermissionCode("lokasi_stok", "view"),
+        pro: false,
+      },
+      {
+        name: "Merk Kendaraan",
+        path: "/master/merk-kendaraan",
+        permission: makePermissionCode("merk_kendaraan", "view"),
+        pro: false,
+      },
+      {
+        name: "Alasan Retur",
+        path: "/master/alasan-retur",
+        permission: makePermissionCode("alasan_retur", "view"),
+        pro: false,
+      },
+      {
+        name: "Kondisi Barang",
+        path: "/master/kondisi-barang",
+        permission: makePermissionCode("kondisi_barang", "view"),
+        pro: false,
+      },
+      {
+        name: "Metode Pembayaran",
+        path: "/master/metode-pembayaran",
+        permission: makePermissionCode("metode_pembayaran", "view"),
+        pro: false,
+      },
     ],
   },
   {
     icon: <ReportIcon />,
     name: "Laporan",
     subItems: [
-      { name: "Laporan Servis", path: "/laporan/servis", pro: false },
-      { name: "Laporan Keuangan", path: "/laporan/keuangan", pro: false },
-      { name: "Laporan Stok", path: "/laporan/stok", pro: false },
+      {
+        name: "Laporan Servis",
+        path: "/laporan/servis",
+        permission: makePermissionCode("laporan_servis", "view"),
+        pro: false,
+      },
+      {
+        name: "Laporan Keuangan",
+        path: "/laporan/keuangan",
+        permission: makePermissionCode("laporan_keuangan", "view"),
+        pro: false,
+      },
+      {
+        name: "Laporan Stok",
+        path: "/laporan/stok",
+        permission: makePermissionCode("laporan_stok", "view"),
+        pro: false,
+      },
+    ],
+  },
+  {
+    icon: <LockIcon />,
+    name: "Pengaturan",
+    subItems: [
+      {
+        name: "Pengguna",
+        path: "/pengaturan/pengguna",
+        permission: makePermissionCode("pengguna", "view"),
+        pro: false,
+      },
+      {
+        name: "Role & Hak Akses",
+        path: "/pengaturan/role",
+        permission: makePermissionCode("role_hak_akses", "view"),
+        pro: false,
+      },
+      {
+        name: "Audit Log",
+        path: "/pengaturan/audit-log",
+        permission: makePermissionCode("audit_log", "view"),
+        pro: false,
+      },
     ],
   },
 ];
 
-const AppSidebar: React.FC = () => {
+const filterNavItems = (items: NavItem[], permissions: string[]) =>
+  items
+    .map((item) => {
+      if (!item.subItems) {
+        return item;
+      }
+
+      return {
+        ...item,
+        subItems: item.subItems.filter((subItem) =>
+          hasPermission(permissions, subItem.permission)
+        ),
+      };
+    })
+    .filter((item) =>
+      item.subItems
+        ? item.subItems.length > 0
+        : hasPermission(permissions, item.permission)
+    );
+
+type AppSidebarProps = {
+  user: AuthUser;
+};
+
+const AppSidebar: React.FC<AppSidebarProps> = ({ user }) => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
+  const visibleNavItems = useMemo(
+    () => filterNavItems(navItems, user.permissions),
+    [user.permissions]
+  );
+  const visibleOthersItems = useMemo(
+    () => filterNavItems(othersItems, user.permissions),
+    [user.permissions]
+  );
+
+  type OpenSubmenu = {
+    type: "main" | "others";
+    index: number;
+  };
+
+  const [openSubmenu, setOpenSubmenu] = useState<OpenSubmenu | "closed" | null>(
+    null
+  );
+  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
+    {}
+  );
+  const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const isActive = useCallback(
+    (path: string) =>
+      path === "/"
+        ? pathname === path
+        : pathname === path || pathname.startsWith(`${path}/`),
+    [pathname]
+  );
+
+  const activeSubmenu: OpenSubmenu | null = (() => {
+    for (const menuType of ["main", "others"] as const) {
+      const items = menuType === "main" ? visibleNavItems : visibleOthersItems;
+      const activeIndex = items.findIndex((nav) =>
+        nav.subItems?.some((subItem) => isActive(subItem.path))
+      );
+
+      if (activeIndex >= 0) {
+        return {
+          type: menuType,
+          index: activeIndex,
+        };
+      }
+    }
+
+    return null;
+  })();
+
+  const currentOpenSubmenu =
+    openSubmenu === "closed" ? null : openSubmenu ?? activeSubmenu;
+
   const renderMenuItems = (
-    navItems: NavItem[],
+    items: NavItem[],
     menuType: "main" | "others"
   ) => (
     <ul className="flex flex-col gap-4">
-      {navItems.map((nav, index) => (
+      {items.map((nav, index) => (
         <li key={nav.name}>
           {nav.subItems ? (
             <button
               onClick={() => handleSubmenuToggle(index, menuType)}
               className={`menu-item group  ${
-                openSubmenu?.type === menuType && openSubmenu?.index === index
+                currentOpenSubmenu?.type === menuType && currentOpenSubmenu?.index === index
                   ? "menu-item-active"
                   : "menu-item-inactive"
               } cursor-pointer ${
@@ -110,7 +404,7 @@ const AppSidebar: React.FC = () => {
             >
               <span
                 className={` ${
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
+                  currentOpenSubmenu?.type === menuType && currentOpenSubmenu?.index === index
                     ? "menu-item-icon-active"
                     : "menu-item-icon-inactive"
                 }`}
@@ -118,13 +412,13 @@ const AppSidebar: React.FC = () => {
                 {nav.icon}
               </span>
               {(isExpanded || isHovered || isMobileOpen) && (
-                <span className={`menu-item-text`}>{nav.name}</span>
+                <span className="menu-item-text">{nav.name}</span>
               )}
               {(isExpanded || isHovered || isMobileOpen) && (
                 <ChevronDownIcon
-                  className={`ml-auto w-5 h-5 transition-transform duration-200  ${
-                    openSubmenu?.type === menuType &&
-                    openSubmenu?.index === index
+                  className={`ml-auto h-5 w-5 transition-transform duration-200 ${
+                    currentOpenSubmenu?.type === menuType &&
+                    currentOpenSubmenu?.index === index
                       ? "rotate-180 text-brand-500"
                       : ""
                   }`}
@@ -149,7 +443,7 @@ const AppSidebar: React.FC = () => {
                   {nav.icon}
                 </span>
                 {(isExpanded || isHovered || isMobileOpen) && (
-                  <span className={`menu-item-text`}>{nav.name}</span>
+                  <span className="menu-item-text">{nav.name}</span>
                 )}
               </Link>
             )
@@ -162,12 +456,12 @@ const AppSidebar: React.FC = () => {
               className="overflow-hidden transition-all duration-300"
               style={{
                 height:
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
+                  currentOpenSubmenu?.type === menuType && currentOpenSubmenu?.index === index
                     ? `${subMenuHeight[`${menuType}-${index}`]}px`
                     : "0px",
               }}
             >
-              <ul className="mt-2 space-y-1 ml-9">
+              <ul className="ml-9 mt-2 space-y-1">
                 {nav.subItems.map((subItem) => (
                   <li key={subItem.name}>
                     <Link
@@ -179,7 +473,7 @@ const AppSidebar: React.FC = () => {
                       }`}
                     >
                       {subItem.name}
-                      <span className="flex items-center gap-1 ml-auto">
+                      <span className="ml-auto flex items-center gap-1">
                         {subItem.new && (
                           <span
                             className={`ml-auto ${
@@ -214,44 +508,10 @@ const AppSidebar: React.FC = () => {
     </ul>
   );
 
-  const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "others";
-    index: number;
-  } | null>(null);
-  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
-    {}
-  );
-  const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  const isActive = useCallback((path: string) => path === pathname, [pathname]);
-
   useEffect(() => {
-    let submenuMatched = false;
-    ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
-      items.forEach((nav, index) => {
-        if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as "main" | "others",
-                index,
-              });
-              submenuMatched = true;
-            }
-          });
-        }
-      });
-    });
+    if (currentOpenSubmenu !== null) {
+      const key = `${currentOpenSubmenu.type}-${currentOpenSubmenu.index}`;
 
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [pathname, isActive]);
-
-  useEffect(() => {
-    if (openSubmenu !== null) {
-      const key = `${openSubmenu.type}-${openSubmenu.index}`;
       if (subMenuRefs.current[key]) {
         setSubMenuHeight((prevHeights) => ({
           ...prevHeights,
@@ -259,24 +519,27 @@ const AppSidebar: React.FC = () => {
         }));
       }
     }
-  }, [openSubmenu]);
+  }, [currentOpenSubmenu]);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
-    setOpenSubmenu((prevOpenSubmenu) => {
-      if (
-        prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
-        prevOpenSubmenu.index === index
-      ) {
-        return null;
-      }
-      return { type: menuType, index };
+    if (
+      currentOpenSubmenu &&
+      currentOpenSubmenu.type === menuType &&
+      currentOpenSubmenu.index === index
+    ) {
+      setOpenSubmenu("closed");
+      return;
+    }
+
+    setOpenSubmenu({
+      type: menuType,
+      index,
     });
   };
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+      className={`fixed left-0 top-0 z-50 mt-16 flex h-screen flex-col border-r border-gray-200 bg-white px-5 text-gray-900 transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900 lg:mt-0 
         ${
           isExpanded || isMobileOpen
             ? "w-[290px]"
@@ -290,14 +553,14 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${
+        className={`flex py-8 ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
         <Link href="/">
           {isExpanded || isHovered || isMobileOpen ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-10 h-10 bg-brand-500 rounded-lg">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500">
                 <span className="text-xl font-bold text-white">A</span>
               </div>
               <span className="text-xl font-bold text-gray-800 dark:text-white">
@@ -305,8 +568,8 @@ const AppSidebar: React.FC = () => {
               </span>
             </div>
           ) : (
-            <div className="flex items-center justify-center w-10 h-10 bg-brand-500 rounded-lg">
-              <span className="text-xl font-bold text-white">B</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500">
+              <span className="text-xl font-bold text-white">A</span>
             </div>
           )}
         </Link>
@@ -316,7 +579,7 @@ const AppSidebar: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                className={`mb-4 flex text-xs uppercase leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
@@ -328,12 +591,12 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(visibleNavItems, "main")}
             </div>
 
-            <div className="">
+            <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                className={`mb-4 flex text-xs uppercase leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
@@ -345,11 +608,10 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(visibleOthersItems, "others")}
             </div>
           </div>
         </nav>
-
       </div>
     </aside>
   );

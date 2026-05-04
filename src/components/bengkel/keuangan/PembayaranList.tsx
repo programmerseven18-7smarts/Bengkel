@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -9,106 +10,82 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
+import Button from "@/components/ui/button/Button";
+import { cancelPembayaranAction } from "@/lib/keuangan/actions";
 
-// Mock data pembayaran
-const pembayaranData = [
-  {
-    id: "PAY-2024-001",
-    invoiceId: "INV-2024-001",
-    tanggal: "2024-01-15",
-    pelanggan: "Budi Santoso",
-    jumlahBayar: 1200000,
-    metodePembayaran: "Transfer Bank",
-    nomorReferensi: "TRF001234",
-    kasir: "Admin 1",
-  },
-  {
-    id: "PAY-2024-002",
-    invoiceId: "INV-2024-003",
-    tanggal: "2024-01-14",
-    pelanggan: "Ahmad Wijaya",
-    jumlahBayar: 650000,
-    metodePembayaran: "Tunai",
-    nomorReferensi: "-",
-    kasir: "Admin 2",
-  },
-  {
-    id: "PAY-2024-003",
-    invoiceId: "INV-2024-005",
-    tanggal: "2024-01-13",
-    pelanggan: "Rudi Hermawan",
-    jumlahBayar: 450000,
-    metodePembayaran: "QRIS",
-    nomorReferensi: "QRIS789012",
-    kasir: "Admin 1",
-  },
-  {
-    id: "PAY-2024-004",
-    invoiceId: "INV-2024-006",
-    tanggal: "2024-01-12",
-    pelanggan: "Eka Pratama",
-    jumlahBayar: 2150000,
-    metodePembayaran: "Kartu Debit",
-    nomorReferensi: "DEB345678",
-    kasir: "Admin 2",
-  },
-  {
-    id: "PAY-2024-005",
-    invoiceId: "INV-2024-007",
-    tanggal: "2024-01-11",
-    pelanggan: "Lisa Maharani",
-    jumlahBayar: 875000,
-    metodePembayaran: "Transfer Bank",
-    nomorReferensi: "TRF567890",
-    kasir: "Admin 1",
-  },
-];
+export interface PembayaranRow {
+  id: string;
+  noPembayaran: string;
+  noInvoice: string;
+  invoiceId: string;
+  tanggal: string;
+  pelanggan: string;
+  jumlahBayar: number;
+  metodePembayaran: string;
+  nomorReferensi: string;
+  kasir: string;
+  status: "DRAFT" | "SELESAI" | "BATAL";
+}
+
+interface PembayaranListProps {
+  pembayaran: PembayaranRow[];
+}
 
 const getMetodeBadge = (metode: string) => {
-  switch (metode) {
-    case "Transfer Bank":
-      return <Badge color="primary">{metode}</Badge>;
-    case "Tunai":
-      return <Badge color="success">{metode}</Badge>;
-    case "QRIS":
-      return <Badge color="info">{metode}</Badge>;
-    case "Kartu Debit":
-      return <Badge color="warning">{metode}</Badge>;
-    default:
-      return <Badge color="light">{metode}</Badge>;
+  if (!metode) return <Badge color="light">-</Badge>;
+  if (metode.toLowerCase().includes("tunai")) {
+    return <Badge color="success">{metode}</Badge>;
   }
+  if (metode.toLowerCase().includes("qris")) {
+    return <Badge color="info">{metode}</Badge>;
+  }
+  if (metode.toLowerCase().includes("transfer")) {
+    return <Badge color="primary">{metode}</Badge>;
+  }
+  return <Badge color="warning">{metode}</Badge>;
 };
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("id-ID", {
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
   }).format(value);
-};
 
-export default function PembayaranList() {
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+export default function PembayaranList({ pembayaran }: PembayaranListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [metodeFilter, setMetodeFilter] = useState("Semua");
 
-  const filteredData = pembayaranData.filter((item) => {
-    const matchSearch =
-      item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.invoiceId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.pelanggan.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchMetode =
-      metodeFilter === "Semua" || item.metodePembayaran === metodeFilter;
-    return matchSearch && matchMetode;
-  });
+  const metodeOptions = useMemo(
+    () => Array.from(new Set(pembayaran.map((item) => item.metodePembayaran).filter(Boolean))),
+    [pembayaran]
+  );
+  const filteredData = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
 
+    return pembayaran.filter((item) => {
+      const text =
+        `${item.noPembayaran} ${item.noInvoice} ${item.pelanggan} ${item.nomorReferensi}`.toLowerCase();
+      const matchSearch = !keyword || text.includes(keyword);
+      const matchMetode =
+        metodeFilter === "Semua" || item.metodePembayaran === metodeFilter;
+      return matchSearch && matchMetode;
+    });
+  }, [metodeFilter, pembayaran, searchTerm]);
   const totalPembayaran = filteredData.reduce(
-    (sum, item) => sum + item.jumlahBayar,
+    (sum, item) => sum + (item.status === "SELESAI" ? item.jumlahBayar : 0),
     0
   );
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      {/* Header */}
+    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-5 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -121,139 +98,135 @@ export default function PembayaranList() {
         <div className="rounded-lg bg-success-50 px-4 py-2 dark:bg-success-500/10">
           <p className="text-sm text-success-600 dark:text-success-400">
             Total Pembayaran:{" "}
-            <span className="font-semibold">
-              {formatCurrency(totalPembayaran)}
-            </span>
+            <span className="font-semibold">{formatCurrency(totalPembayaran)}</span>
           </p>
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-4 dark:border-gray-800 sm:flex-row">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Cari ID pembayaran, invoice, atau pelanggan..."
-            className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white/90"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-3">
-          <select
-            className="rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white/90"
-            value={metodeFilter}
-            onChange={(e) => setMetodeFilter(e.target.value)}
-          >
-            <option value="Semua">Semua Metode</option>
-            <option value="Tunai">Tunai</option>
-            <option value="Transfer Bank">Transfer Bank</option>
-            <option value="QRIS">QRIS</option>
-            <option value="Kartu Debit">Kartu Debit</option>
-          </select>
-        </div>
+        <input
+          type="text"
+          placeholder="Cari ID pembayaran, invoice, atau pelanggan..."
+          className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white/90"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+        />
+        <select
+          className="rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white/90"
+          value={metodeFilter}
+          onChange={(event) => setMetodeFilter(event.target.value)}
+        >
+          <option value="Semua">Semua Metode</option>
+          {metodeOptions.map((metode) => (
+            <option key={metode} value={metode}>
+              {metode}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
-        <Table>
-          <TableHeader className="border-b border-gray-200 dark:border-gray-800">
-            <TableRow>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                ID Pembayaran
-              </TableCell>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                No. Invoice
-              </TableCell>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                Tanggal
-              </TableCell>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                Pelanggan
-              </TableCell>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                Jumlah Bayar
-              </TableCell>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-center text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                Metode
-              </TableCell>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                No. Referensi
-              </TableCell>
-              <TableCell
-                isHeader
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-              >
-                Kasir
-              </TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredData.map((item) => (
-              <TableRow
-                key={item.id}
-                className="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
-              >
-                <TableCell className="px-6 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
-                  {item.id}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-brand-500">
-                  {item.invoiceId}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                  {new Date(item.tanggal).toLocaleDateString("id-ID", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-gray-800 dark:text-white/90">
-                  {item.pelanggan}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-right text-sm font-semibold text-success-600 dark:text-success-400">
-                  {formatCurrency(item.jumlahBayar)}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-center">
-                  {getMetodeBadge(item.metodePembayaran)}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                  {item.nomorReferensi}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                  {item.kasir}
-                </TableCell>
+        <div className="min-w-[1160px]">
+          <Table>
+            <TableHeader className="border-b border-gray-200 dark:border-gray-800">
+              <TableRow>
+                {[
+                  "No",
+                  "ID Pembayaran",
+                  "No. Invoice",
+                  "Tanggal",
+                  "Pelanggan",
+                  "Jumlah Bayar",
+                  "Metode",
+                  "No. Referensi",
+                  "Kasir",
+                  "Status",
+                  "Aksi",
+                ].map((header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
+                  >
+                    {header}
+                  </TableCell>
+                ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredData.map((item, index) => (
+                <TableRow
+                  key={item.id}
+                  className="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+                >
+                  <TableCell className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
+                    {item.noPembayaran}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-brand-500">
+                    <Link href={`/keuangan/invoice/${item.invoiceId}`}>
+                      {item.noInvoice}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    {formatDate(item.tanggal)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-800 dark:text-white/90">
+                    {item.pelanggan}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-right text-sm font-semibold text-success-600 dark:text-success-400">
+                    {formatCurrency(item.jumlahBayar)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-center">
+                    {getMetodeBadge(item.metodePembayaran)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    {item.nomorReferensi || "-"}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    {item.kasir || "-"}
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <Badge
+                      color={
+                        item.status === "SELESAI"
+                          ? "success"
+                          : item.status === "BATAL"
+                            ? "error"
+                            : "light"
+                      }
+                    >
+                      {item.status === "SELESAI"
+                        ? "Selesai"
+                        : item.status === "BATAL"
+                          ? "Batal"
+                          : "Draft"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    {item.status === "SELESAI" ? (
+                      <form action={cancelPembayaranAction}>
+                        <input type="hidden" name="id" value={item.id} />
+                        <Button type="submit" size="sm" variant="outline">
+                          Batalkan
+                        </Button>
+                      </form>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
-      {/* Footer */}
       <div className="border-t border-gray-200 px-6 py-4 dark:border-gray-800">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Menampilkan {filteredData.length} dari {pembayaranData.length}{" "}
-          pembayaran
+          Menampilkan {filteredData.length} dari {pembayaran.length} pembayaran
         </p>
       </div>
     </div>

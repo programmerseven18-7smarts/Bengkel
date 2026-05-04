@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -8,98 +10,83 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
+import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Pagination from "@/components/tables/Pagination";
-import { EyeIcon } from "@/icons";
-import Link from "next/link";
 
-interface StokKeluar {
+type StokKeluarTipe = "SERVIS" | "PENJUALAN" | "RETUR" | "LAINNYA";
+
+export interface StokKeluarRow {
   id: string;
   noTransaksi: string;
   tanggal: string;
   referensi: string;
-  tipe: "Servis" | "Penjualan" | "Retur" | "Lainnya";
+  tipe: StokKeluarTipe;
   totalItem: number;
   totalNilai: number;
 }
 
-const stokKeluarData: StokKeluar[] = [
-  {
-    id: "1",
-    noTransaksi: "SK-2024-001",
-    tanggal: "30 Apr 2024",
-    referensi: "WO-2024-001",
-    tipe: "Servis",
-    totalItem: 3,
-    totalNilai: 155000,
-  },
-  {
-    id: "2",
-    noTransaksi: "SK-2024-002",
-    tanggal: "30 Apr 2024",
-    referensi: "INV-2024-015",
-    tipe: "Penjualan",
-    totalItem: 2,
-    totalNilai: 170000,
-  },
-  {
-    id: "3",
-    noTransaksi: "SK-2024-003",
-    tanggal: "29 Apr 2024",
-    referensi: "WO-2024-003",
-    tipe: "Servis",
-    totalItem: 5,
-    totalNilai: 285000,
-  },
-  {
-    id: "4",
-    noTransaksi: "SK-2024-004",
-    tanggal: "28 Apr 2024",
-    referensi: "RTR-2024-001",
-    tipe: "Retur",
-    totalItem: 1,
-    totalNilai: 65000,
-  },
-  {
-    id: "5",
-    noTransaksi: "SK-2024-005",
-    tanggal: "27 Apr 2024",
-    referensi: "INV-2024-012",
-    tipe: "Penjualan",
-    totalItem: 4,
-    totalNilai: 420000,
-  },
-];
+interface StokKeluarListProps {
+  stokKeluar: StokKeluarRow[];
+}
 
 const tipeOptions = [
   { value: "", label: "Semua Tipe" },
-  { value: "Servis", label: "Servis" },
-  { value: "Penjualan", label: "Penjualan" },
-  { value: "Retur", label: "Retur" },
-  { value: "Lainnya", label: "Lainnya" },
+  { value: "SERVIS", label: "Servis" },
+  { value: "PENJUALAN", label: "Penjualan" },
+  { value: "RETUR", label: "Retur" },
+  { value: "LAINNYA", label: "Lainnya" },
 ];
 
-const getTipeColor = (tipe: StokKeluar["tipe"]) => {
+const tipeLabel = (tipe: StokKeluarTipe) =>
+  tipeOptions.find((item) => item.value === tipe)?.label ?? tipe;
+
+const getTipeColor = (tipe: StokKeluarTipe) => {
   switch (tipe) {
-    case "Servis":
+    case "SERVIS":
       return "primary";
-    case "Penjualan":
+    case "PENJUALAN":
       return "success";
-    case "Retur":
+    case "RETUR":
       return "warning";
-    default:
+    case "LAINNYA":
       return "light";
   }
 };
 
-export default function StokKeluarList() {
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+export default function StokKeluarList({ stokKeluar }: StokKeluarListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTipe, setSelectedTipe] = useState("");
+  const [query, setQuery] = useState("");
+
+  const filteredData = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+
+    return stokKeluar.filter((item) => {
+      const text = `${item.noTransaksi} ${item.referensi}`.toLowerCase();
+      const matchKeyword = !keyword || text.includes(keyword);
+      const matchTipe = !selectedTipe || item.tipe === selectedTipe;
+      return matchKeyword && matchTipe;
+    });
+  }, [query, selectedTipe, stokKeluar]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      {/* Header */}
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="w-full sm:w-64">
@@ -107,6 +94,8 @@ export default function StokKeluarList() {
               type="text"
               placeholder="Cari transaksi..."
               className="w-full"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
             />
           </div>
           <div className="w-40">
@@ -117,95 +106,69 @@ export default function StokKeluarList() {
               defaultValue={selectedTipe}
             />
           </div>
-          <div className="w-40">
-            <Input type="date" className="w-full" />
-          </div>
         </div>
+        <Link href="/servis/work-order">
+          <Button size="md" variant="primary" className="w-full sm:w-auto">
+            Buat dari Work Order
+          </Button>
+        </Link>
       </div>
 
-      {/* Table */}
       <div className="max-w-full overflow-x-auto">
         <div className="min-w-[800px]">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  No. Transaksi
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Tanggal
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Referensi
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Tipe
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400"
-                >
-                  Total Item
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400"
-                >
-                  Total Nilai
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Aksi
-                </TableCell>
+                {[
+                  "No",
+                  "No. Transaksi",
+                  "Tanggal",
+                  "Referensi",
+                  "Tipe",
+                  "Total Item",
+                  "Total Nilai",
+                ].map((header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >
+                    {header}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHeader>
 
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {stokKeluarData.map((item) => (
+              {filteredData.map((item, index) => (
                 <TableRow key={item.id}>
-                  <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">
-                    {item.noTransaksi}
+                  <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
+                    {index + 1}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    {item.tanggal}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-start">
+                  <TableCell className="px-5 py-4 text-start text-theme-sm font-medium text-gray-800 dark:text-white/90">
                     <Link
-                      href="#"
-                      className="text-brand-500 hover:text-brand-600 text-theme-sm"
+                      href={`/inventory/stok-keluar/${item.id}`}
+                      className="text-brand-500 hover:text-brand-600"
                     >
-                      {item.referensi}
+                      {item.noTransaksi}
                     </Link>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-start">
+                  <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
+                    {formatDate(item.tanggal)}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-start text-theme-sm text-brand-500">
+                    {item.referensi || "-"}
+                  </TableCell>
+                  <TableCell className="px-5 py-4">
                     <Badge size="sm" color={getTipeColor(item.tipe)}>
-                      {item.tipe}
+                      {tipeLabel(item.tipe)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm dark:text-white/90">
+                  <TableCell className="px-5 py-4 text-center text-theme-sm text-gray-800 dark:text-white/90">
                     {item.totalItem}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 text-end text-theme-sm font-medium dark:text-white/90">
-                    Rp {item.totalNilai.toLocaleString("id-ID")}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-start">
-                    <button className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400">
-                      <EyeIcon className="size-5" />
-                    </button>
+                  <TableCell className="px-5 py-4 text-end text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                    {formatCurrency(item.totalNilai)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -214,16 +177,11 @@ export default function StokKeluarList() {
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-white/[0.05] sm:p-6">
+      <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-white/[0.05] sm:p-6">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Menampilkan 1-5 dari 5 data
+          Menampilkan {filteredData.length} dari {stokKeluar.length} data
         </p>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={1}
-          onPageChange={setCurrentPage}
-        />
+        <Pagination currentPage={currentPage} totalPages={1} onPageChange={setCurrentPage} />
       </div>
     </div>
   );

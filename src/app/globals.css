@@ -192,6 +192,36 @@
   }
 }
 
+@media print {
+  aside,
+  header,
+  button,
+  .dropdown,
+  .modal,
+  [data-print-hidden="true"] {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  main,
+  section,
+  div {
+    box-shadow: none !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}
+
 @utility menu-item {
   @apply relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-theme-sm;
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -16,7 +16,7 @@ import { Modal } from "@/components/ui/modal";
 import { EyeIcon } from "@/icons";
 import Link from "next/link";
 
-interface RiwayatItem {
+export interface RiwayatItem {
   id: string;
   noWorkOrder: string;
   tanggal: string;
@@ -35,134 +35,10 @@ interface RiwayatItem {
   totalBiaya: number;
   status: "Selesai" | "Batal";
   statusBayar: "Lunas" | "Belum Lunas" | "Sebagian";
+  invoiceId: string | null;
   jasaList: { nama: string; harga: number }[];
   sparepartList: { nama: string; qty: number; harga: number }[];
 }
-
-const riwayatData: RiwayatItem[] = [
-  {
-    id: "1",
-    noWorkOrder: "WO-2024-045",
-    tanggal: "2024-01-10",
-    pelanggan: "Budi Santoso",
-    pelangganId: "1",
-    kendaraan: "Honda Beat",
-    kendaraanId: "1",
-    platNomor: "B 1234 ABC",
-    jenisServis: "Ganti Oli + Tune Up",
-    keluhan: "Mesin terasa kurang bertenaga dan suara kasar",
-    diagnosa: "Oli sudah hitam pekat, perlu diganti. Busi aus perlu tune up.",
-    tindakan: "Ganti oli mesin dengan MPX2, tune up ringan, bersihkan filter udara",
-    mekanik: "Rudi",
-    totalJasa: 100000,
-    totalSparepart: 85000,
-    totalBiaya: 185000,
-    status: "Selesai",
-    statusBayar: "Lunas",
-    jasaList: [
-      { nama: "Ganti Oli", harga: 25000 },
-      { nama: "Tune Up Ringan", harga: 75000 },
-    ],
-    sparepartList: [
-      { nama: "Oli Mesin MPX2 1L", qty: 1, harga: 85000 },
-    ],
-  },
-  {
-    id: "2",
-    noWorkOrder: "WO-2024-032",
-    tanggal: "2024-01-05",
-    pelanggan: "Andi Wijaya",
-    pelangganId: "2",
-    kendaraan: "Toyota Avanza",
-    kendaraanId: "2",
-    platNomor: "D 7788 KA",
-    jenisServis: "Servis AC",
-    keluhan: "AC tidak dingin",
-    diagnosa: "Freon habis, perlu refill dan cek kebocoran",
-    tindakan: "Refill freon, cek kebocoran, bersihkan filter AC",
-    mekanik: "Dimas",
-    totalJasa: 150000,
-    totalSparepart: 300000,
-    totalBiaya: 450000,
-    status: "Selesai",
-    statusBayar: "Belum Lunas",
-    jasaList: [
-      { nama: "Servis AC Mobil", harga: 150000 },
-    ],
-    sparepartList: [
-      { nama: "Freon R134a", qty: 2, harga: 150000 },
-    ],
-  },
-  {
-    id: "3",
-    noWorkOrder: "WO-2024-028",
-    tanggal: "2024-01-03",
-    pelanggan: "Siti Rahma",
-    pelangganId: "3",
-    kendaraan: "Yamaha NMAX",
-    kendaraanId: "3",
-    platNomor: "F 9921 ZZ",
-    jenisServis: "Servis Rem",
-    keluhan: "Rem berdecit dan kurang pakem",
-    diagnosa: "Kampas rem depan sudah tipis",
-    tindakan: "Ganti kampas rem depan",
-    mekanik: "Ahmad",
-    totalJasa: 35000,
-    totalSparepart: 65000,
-    totalBiaya: 100000,
-    status: "Selesai",
-    statusBayar: "Lunas",
-    jasaList: [
-      { nama: "Ganti Kampas Rem", harga: 35000 },
-    ],
-    sparepartList: [
-      { nama: "Kampas Rem Depan Honda", qty: 1, harga: 65000 },
-    ],
-  },
-  {
-    id: "4",
-    noWorkOrder: "WO-2024-025",
-    tanggal: "2024-01-02",
-    pelanggan: "Raka Pratama",
-    pelangganId: "4",
-    kendaraan: "Honda Brio",
-    kendaraanId: "4",
-    platNomor: "B 8812 KJ",
-    jenisServis: "Ganti Aki",
-    keluhan: "Mesin susah dinyalakan, aki soak",
-    diagnosa: "Aki sudah tidak bisa menyimpan daya",
-    tindakan: "Ganti aki baru",
-    mekanik: "Fajar",
-    totalJasa: 25000,
-    totalSparepart: 350000,
-    totalBiaya: 375000,
-    status: "Selesai",
-    statusBayar: "Sebagian",
-    jasaList: [
-      { nama: "Pasang Aki", harga: 25000 },
-    ],
-    sparepartList: [
-      { nama: "Aki GS 12V 5A", qty: 1, harga: 350000 },
-    ],
-  },
-];
-
-const pelangganOptions = [
-  { value: "", label: "Semua Pelanggan" },
-  { value: "1", label: "Budi Santoso" },
-  { value: "2", label: "Andi Wijaya" },
-  { value: "3", label: "Siti Rahma" },
-  { value: "4", label: "Raka Pratama" },
-];
-
-const jenisServisOptions = [
-  { value: "", label: "Semua Jenis Servis" },
-  { value: "Ganti Oli", label: "Ganti Oli" },
-  { value: "Tune Up", label: "Tune Up" },
-  { value: "Servis Rem", label: "Servis Rem" },
-  { value: "Servis AC", label: "Servis AC" },
-  { value: "Ganti Aki", label: "Ganti Aki" },
-];
 
 const getStatusBayarColor = (status: RiwayatItem["statusBayar"]) => {
   switch (status) {
@@ -177,7 +53,11 @@ const getStatusBayarColor = (status: RiwayatItem["statusBayar"]) => {
   }
 };
 
-export default function RiwayatServis() {
+interface RiwayatServisProps {
+  items: RiwayatItem[];
+}
+
+export default function RiwayatServis({ items }: RiwayatServisProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPelanggan, setSelectedPelanggan] = useState("");
   const [selectedJenis, setSelectedJenis] = useState("");
@@ -187,6 +67,63 @@ export default function RiwayatServis() {
   const openDetail = (item: RiwayatItem) => {
     setSelectedItem(item);
     setIsDetailOpen(true);
+  };
+
+  const pelangganOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    items.forEach((item) => options.set(item.pelangganId, item.pelanggan));
+
+    return [
+      { value: "", label: "Semua Pelanggan" },
+      ...Array.from(options.entries()).map(([value, label]) => ({ value, label })),
+    ];
+  }, [items]);
+
+  const jenisServisOptions = useMemo(() => {
+    const options = Array.from(new Set(items.map((item) => item.jenisServis).filter(Boolean)));
+
+    return [
+      { value: "", label: "Semua Jenis Servis" },
+      ...options.map((item) => ({ value: item, label: item })),
+    ];
+  }, [items]);
+
+  const filteredItems = useMemo(
+    () =>
+      items.filter((item) => {
+        const matchPelanggan = !selectedPelanggan || item.pelangganId === selectedPelanggan;
+        const matchJenis = !selectedJenis || item.jenisServis === selectedJenis;
+
+        return matchPelanggan && matchJenis;
+      }),
+    [items, selectedJenis, selectedPelanggan]
+  );
+
+  const exportCsv = () => {
+    const rows = [
+      ["No WO", "Tanggal", "Pelanggan", "Kendaraan", "Plat", "Jenis Servis", "Mekanik", "Total", "Status Bayar"],
+      ...filteredItems.map((item) => [
+        item.noWorkOrder,
+        new Date(item.tanggal).toLocaleDateString("id-ID"),
+        item.pelanggan,
+        item.kendaraan,
+        item.platNomor,
+        item.jenisServis,
+        item.mekanik,
+        String(item.totalBiaya),
+        item.statusBayar,
+      ]),
+    ];
+    const csv = rows
+      .map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "riwayat-servis.csv";
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -216,7 +153,7 @@ export default function RiwayatServis() {
             />
           </div>
         </div>
-        <Button size="md" variant="outline">
+        <Button size="md" variant="outline" onClick={exportCsv}>
           Export
         </Button>
       </div>
@@ -227,6 +164,9 @@ export default function RiwayatServis() {
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  No
+                </TableCell>
                 <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   No. Work Order
                 </TableCell>
@@ -257,8 +197,11 @@ export default function RiwayatServis() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {riwayatData.map((item) => (
+              {filteredItems.map((item, index) => (
                 <TableRow key={item.id}>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                    {index + 1}
+                  </TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <Link
                       href={`/servis/work-order/${item.id}`}
@@ -305,6 +248,7 @@ export default function RiwayatServis() {
                   </TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <button
+                      type="button"
                       onClick={() => openDetail(item)}
                       className="p-2 text-gray-500 hover:text-brand-500 dark:text-gray-400 dark:hover:text-brand-400"
                     >
@@ -313,6 +257,16 @@ export default function RiwayatServis() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredItems.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={10}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    Belum ada riwayat servis sesuai filter.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
@@ -321,7 +275,7 @@ export default function RiwayatServis() {
       {/* Pagination */}
       <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-white/[0.05] sm:p-6">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Menampilkan 1-4 dari 4 data
+          Menampilkan {filteredItems.length} dari {items.length} data
         </p>
         <Pagination
           currentPage={currentPage}
@@ -449,9 +403,15 @@ export default function RiwayatServis() {
               <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
                 Tutup
               </Button>
-              <Button variant="primary">
-                Cetak Invoice
-              </Button>
+              {selectedItem.invoiceId ? (
+                <Link href={`/keuangan/invoice/${selectedItem.invoiceId}`}>
+                  <Button variant="primary">Buka Invoice</Button>
+                </Link>
+              ) : (
+                <Link href="/keuangan/invoice/create">
+                  <Button variant="primary">Buat Invoice</Button>
+                </Link>
+              )}
             </div>
           </div>
         )}

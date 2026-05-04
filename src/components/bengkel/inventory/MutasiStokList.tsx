@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -7,241 +9,144 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Badge from "@/components/ui/badge/Badge";
+import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
-import Select from "@/components/form/Select";
 import Pagination from "@/components/tables/Pagination";
 
-interface MutasiStok {
+export type MutasiStokRow = {
   id: string;
+  noMutasi: string;
   tanggal: string;
-  kodeBarang: string;
-  namaBarang: string;
-  tipe: "Masuk" | "Keluar";
-  qty: number;
-  satuan: string;
-  stokAwal: number;
-  stokAkhir: number;
-  referensi: string;
-  keterangan: string;
-}
+  lokasiAsal: string;
+  lokasiTujuan: string;
+  penanggungJawab: string;
+  totalQty: number;
+  totalItem: number;
+  catatan: string;
+};
 
-const mutasiData: MutasiStok[] = [
-  {
-    id: "1",
-    tanggal: "30 Apr 2024 10:30",
-    kodeBarang: "SPR-001",
-    namaBarang: "Oli Mesin MPX2 1L",
-    tipe: "Keluar",
-    qty: 1,
-    satuan: "Liter",
-    stokAwal: 26,
-    stokAkhir: 25,
-    referensi: "WO-2024-001",
-    keterangan: "Pemakaian servis",
-  },
-  {
-    id: "2",
-    tanggal: "30 Apr 2024 09:15",
-    kodeBarang: "SPR-003",
-    namaBarang: "Busi NGK Standard",
-    tipe: "Keluar",
-    qty: 1,
-    satuan: "Pcs",
-    stokAwal: 6,
-    stokAkhir: 5,
-    referensi: "WO-2024-001",
-    keterangan: "Pemakaian servis",
-  },
-  {
-    id: "3",
-    tanggal: "30 Apr 2024 08:00",
-    kodeBarang: "SPR-001",
-    namaBarang: "Oli Mesin MPX2 1L",
-    tipe: "Masuk",
-    qty: 20,
-    satuan: "Liter",
-    stokAwal: 6,
-    stokAkhir: 26,
-    referensi: "SM-2024-001",
-    keterangan: "Pembelian dari supplier",
-  },
-  {
-    id: "4",
-    tanggal: "29 Apr 2024 16:45",
-    kodeBarang: "SPR-002",
-    namaBarang: "Kampas Rem Depan Honda",
-    tipe: "Keluar",
-    qty: 1,
-    satuan: "Set",
-    stokAwal: 9,
-    stokAkhir: 8,
-    referensi: "INV-2024-015",
-    keterangan: "Penjualan langsung",
-  },
-  {
-    id: "5",
-    tanggal: "29 Apr 2024 14:20",
-    kodeBarang: "SPR-004",
-    namaBarang: "Filter Udara Beat",
-    tipe: "Keluar",
-    qty: 2,
-    satuan: "Pcs",
-    stokAwal: 3,
-    stokAkhir: 1,
-    referensi: "WO-2024-003",
-    keterangan: "Pemakaian servis",
-  },
-];
+type MutasiStokListProps = {
+  mutasi: MutasiStokRow[];
+};
 
-const tipeOptions = [
-  { value: "", label: "Semua Tipe" },
-  { value: "Masuk", label: "Masuk" },
-  { value: "Keluar", label: "Keluar" },
-];
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 
-export default function MutasiStokList() {
+export default function MutasiStokList({ mutasi }: MutasiStokListProps) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedTipe, setSelectedTipe] = useState("");
+  const [query, setQuery] = useState("");
+
+  const filteredData = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+
+    if (!keyword) return mutasi;
+
+    return mutasi.filter((item) =>
+      `${item.noMutasi} ${item.lokasiAsal} ${item.lokasiTujuan} ${item.penanggungJawab} ${item.catatan}`
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [mutasi, query]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      {/* Header */}
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="w-full sm:w-64">
-            <Input
-              type="text"
-              placeholder="Cari barang..."
-              className="w-full"
-            />
-          </div>
-          <div className="w-40">
-            <Select
-              options={tipeOptions}
-              placeholder="Tipe"
-              onChange={setSelectedTipe}
-              defaultValue={selectedTipe}
-            />
-          </div>
-          <div className="w-40">
-            <Input type="date" className="w-full" />
-          </div>
+        <div className="w-full sm:w-72">
+          <Input
+            type="text"
+            placeholder="Cari mutasi..."
+            className="w-full"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
         </div>
+        <Link href="/inventory/mutasi/create">
+          <Button size="md" variant="primary" className="w-full sm:w-auto">
+            Buat Mutasi
+          </Button>
+        </Link>
       </div>
 
-      {/* Table */}
       <div className="max-w-full overflow-x-auto">
-        <div className="min-w-[1000px]">
+        <div className="min-w-[920px]">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Tanggal
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Kode
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Nama Barang
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Tipe
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400"
-                >
-                  Qty
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400"
-                >
-                  Stok Awal
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400"
-                >
-                  Stok Akhir
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Referensi
-                </TableCell>
+                {[
+                  "No",
+                  "No. Mutasi",
+                  "Tanggal",
+                  "Lokasi Asal",
+                  "Lokasi Tujuan",
+                  "Total Item",
+                  "Total Qty",
+                  "Penanggung Jawab",
+                  "Catatan",
+                ].map((header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >
+                    {header}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHeader>
 
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {mutasiData.map((item) => (
+              {filteredData.map((item, index) => (
                 <TableRow key={item.id}>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    {item.tanggal}
+                  <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
+                    {index + 1}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">
-                    {item.kodeBarang}
+                  <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                    {item.noMutasi}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm dark:text-white/90">
-                    {item.namaBarang}
+                  <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
+                    {formatDate(item.tanggal)}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-start">
-                    <Badge
-                      size="sm"
-                      color={item.tipe === "Masuk" ? "success" : "error"}
-                    >
-                      {item.tipe}
-                    </Badge>
+                  <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
+                    {item.lokasiAsal}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-center">
-                    <span
-                      className={`text-theme-sm font-medium ${
-                        item.tipe === "Masuk"
-                          ? "text-success-600 dark:text-success-500"
-                          : "text-error-600 dark:text-error-500"
-                      }`}
-                    >
-                      {item.tipe === "Masuk" ? "+" : "-"}
-                      {item.qty} {item.satuan}
-                    </span>
+                  <TableCell className="px-5 py-4 text-theme-sm text-gray-800 dark:text-white/90">
+                    {item.lokasiTujuan}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400">
-                    {item.stokAwal}
+                  <TableCell className="px-5 py-4 text-center text-theme-sm text-gray-800 dark:text-white/90">
+                    {item.totalItem}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm font-medium dark:text-white/90">
-                    {item.stokAkhir}
+                  <TableCell className="px-5 py-4 text-center text-theme-sm font-medium text-brand-600 dark:text-brand-400">
+                    {item.totalQty}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-start">
-                    <p className="text-brand-500 text-theme-sm">{item.referensi}</p>
-                    <p className="text-gray-500 text-theme-xs dark:text-gray-400">
-                      {item.keterangan}
-                    </p>
+                  <TableCell className="px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
+                    {item.penanggungJawab || "-"}
+                  </TableCell>
+                  <TableCell className="max-w-[220px] truncate px-5 py-4 text-theme-sm text-gray-500 dark:text-gray-400">
+                    {item.catatan || "-"}
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredData.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    Belum ada mutasi stok.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-white/[0.05] sm:p-6">
+      <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-white/[0.05] sm:p-6">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Menampilkan 1-5 dari 5 data
+          Menampilkan {filteredData.length} dari {mutasi.length} data
         </p>
         <Pagination
           currentPage={currentPage}

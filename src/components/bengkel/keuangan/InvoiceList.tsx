@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Table,
@@ -11,103 +12,105 @@ import {
 } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
+import { createPembayaranAction } from "@/lib/keuangan/actions";
 
-// Mock data invoice
-const invoiceData = [
-  {
-    id: "INV-2024-001",
-    workOrderId: "WO-2024-001",
-    tanggal: "2024-01-15",
-    pelanggan: "Budi Santoso",
-    kendaraan: "B 1234 CD",
-    totalJasa: 350000,
-    totalSparepart: 850000,
-    totalInvoice: 1200000,
-    status: "Lunas",
-  },
-  {
-    id: "INV-2024-002",
-    workOrderId: "WO-2024-002",
-    tanggal: "2024-01-15",
-    pelanggan: "Siti Rahayu",
-    kendaraan: "B 5678 EF",
-    totalJasa: 500000,
-    totalSparepart: 1500000,
-    totalInvoice: 2000000,
-    status: "Belum Lunas",
-  },
-  {
-    id: "INV-2024-003",
-    workOrderId: "WO-2024-003",
-    tanggal: "2024-01-14",
-    pelanggan: "Ahmad Wijaya",
-    kendaraan: "B 9012 GH",
-    totalJasa: 200000,
-    totalSparepart: 450000,
-    totalInvoice: 650000,
-    status: "Lunas",
-  },
-  {
-    id: "INV-2024-004",
-    workOrderId: "WO-2024-004",
-    tanggal: "2024-01-14",
-    pelanggan: "Dewi Lestari",
-    kendaraan: "B 3456 IJ",
-    totalJasa: 750000,
-    totalSparepart: 2500000,
-    totalInvoice: 3250000,
-    status: "Belum Lunas",
-  },
-  {
-    id: "INV-2024-005",
-    workOrderId: "WO-2024-005",
-    tanggal: "2024-01-13",
-    pelanggan: "Rudi Hermawan",
-    kendaraan: "B 7890 KL",
-    totalJasa: 150000,
-    totalSparepart: 300000,
-    totalInvoice: 450000,
-    status: "Lunas",
-  },
-];
+type InvoiceStatus = "DRAFT" | "BELUM_LUNAS" | "SEBAGIAN" | "LUNAS" | "BATAL";
 
-const getStatusBadge = (status: string) => {
+export interface InvoiceRow {
+  id: string;
+  noInvoice: string;
+  noWorkOrder: string;
+  tanggal: string;
+  pelanggan: string;
+  kendaraan: string;
+  totalJasa: number;
+  totalSparepart: number;
+  grandTotal: number;
+  sisaTagihan: number;
+  status: InvoiceStatus;
+}
+
+interface InvoiceListProps {
+  invoices: InvoiceRow[];
+  metodePembayaranOptions: {
+    value: string;
+    label: string;
+  }[];
+  akunKasBankOptions: {
+    value: string;
+    label: string;
+  }[];
+}
+
+const statusLabel = (status: InvoiceStatus) => {
   switch (status) {
-    case "Lunas":
-      return <Badge color="success">{status}</Badge>;
-    case "Belum Lunas":
-      return <Badge color="warning">{status}</Badge>;
-    default:
-      return <Badge color="light">{status}</Badge>;
+    case "DRAFT":
+      return "Draft";
+    case "BELUM_LUNAS":
+      return "Belum Lunas";
+    case "SEBAGIAN":
+      return "Sebagian";
+    case "LUNAS":
+      return "Lunas";
+    case "BATAL":
+      return "Batal";
   }
 };
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("id-ID", {
+const getStatusColor = (status: InvoiceStatus) => {
+  switch (status) {
+    case "LUNAS":
+      return "success";
+    case "BELUM_LUNAS":
+    case "SEBAGIAN":
+      return "warning";
+    case "BATAL":
+      return "error";
+    case "DRAFT":
+      return "light";
+  }
+};
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
   }).format(value);
-};
 
-export default function InvoiceList() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Semua");
-
-  const filteredData = invoiceData.filter((item) => {
-    const matchSearch =
-      item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.pelanggan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.kendaraan.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus =
-      statusFilter === "Semua" || item.status === statusFilter;
-    return matchSearch && matchStatus;
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 
+const toDateInput = (date = new Date()) => date.toISOString().slice(0, 10);
+
+export default function InvoiceList({
+  invoices,
+  metodePembayaranOptions,
+  akunKasBankOptions,
+}: InvoiceListProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Semua");
+  const [paymentInvoice, setPaymentInvoice] = useState<InvoiceRow | null>(null);
+
+  const filteredData = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return invoices.filter((item) => {
+      const text =
+        `${item.noInvoice} ${item.noWorkOrder} ${item.pelanggan} ${item.kendaraan}`.toLowerCase();
+      const matchSearch = !keyword || text.includes(keyword);
+      const matchStatus = statusFilter === "Semua" || item.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [invoices, searchTerm, statusFilter]);
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 dark:border-gray-800 sm:px-6 sm:py-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Daftar Invoice
@@ -116,191 +119,295 @@ export default function InvoiceList() {
             Kelola invoice servis pelanggan
           </p>
         </div>
+        <Link href="/servis/work-order">
+          <Button size="md" variant="primary" className="w-full sm:w-auto">
+            Buat dari Work Order
+          </Button>
+        </Link>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 dark:border-gray-800 sm:px-6 sm:flex-row">
+      <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 dark:border-gray-800 sm:flex-row sm:px-6">
         <div className="flex-1">
           <input
             type="text"
-            placeholder="Cari invoice, pelanggan, atau kendaraan..."
+            placeholder="Cari invoice, WO, pelanggan, atau kendaraan..."
             className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white/90"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
         </div>
-        <div className="flex gap-3">
-          <select
-            className="w-full sm:w-auto rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white/90"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="Semua">Semua Status</option>
-            <option value="Lunas">Lunas</option>
-            <option value="Belum Lunas">Belum Lunas</option>
-          </select>
-        </div>
+        <select
+          className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white/90 sm:w-auto"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
+          <option value="Semua">Semua Status</option>
+          <option value="DRAFT">Draft</option>
+          <option value="BELUM_LUNAS">Belum Lunas</option>
+          <option value="SEBAGIAN">Sebagian</option>
+          <option value="LUNAS">Lunas</option>
+          <option value="BATAL">Batal</option>
+        </select>
       </div>
 
-      {/* Mobile Card View */}
-      <div className="block lg:hidden">
-        <div className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-          {filteredData.map((item) => (
-            <div key={item.id} className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <Link
-                    href={`/keuangan/invoice/${item.id}`}
-                    className="font-medium text-brand-500 hover:text-brand-600"
+      <div className="overflow-x-auto">
+        <div className="min-w-[980px]">
+          <Table>
+            <TableHeader className="border-b border-gray-200 dark:border-gray-800">
+              <TableRow>
+                {[
+                  "No",
+                  "No. Invoice",
+                  "WO",
+                  "Tanggal",
+                  "Pelanggan",
+                  "Kendaraan",
+                  "Grand Total",
+                  "Sisa Tagihan",
+                  "Status",
+                  "Aksi",
+                ].map((header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
                   >
-                    {item.id}
-                  </Link>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(item.tanggal).toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-                {getStatusBadge(item.status)}
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Pelanggan</span>
-                  <span className="text-gray-800 dark:text-white/90">{item.pelanggan}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Kendaraan</span>
-                  <span className="text-gray-800 dark:text-white/90">{item.kendaraan}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Total Jasa</span>
-                  <span className="text-gray-800 dark:text-white/90">{formatCurrency(item.totalJasa)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Total Sparepart</span>
-                  <span className="text-gray-800 dark:text-white/90">{formatCurrency(item.totalSparepart)}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-white/[0.05]">
-                  <span className="font-medium text-gray-800 dark:text-white/90">Total Invoice</span>
-                  <span className="font-semibold text-gray-800 dark:text-white/90">{formatCurrency(item.totalInvoice)}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-white/[0.05]">
-                <Button size="sm" variant="outline">
-                  Cetak
-                </Button>
-                {item.status === "Belum Lunas" && (
-                  <Button size="sm" variant="primary">
-                    Bayar
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
+                    {header}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredData.map((item, index) => (
+                <TableRow
+                  key={item.id}
+                  className="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+                >
+                  <TableCell className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 font-medium text-brand-500">
+                    <Link href={`/keuangan/invoice/${item.id}`}>
+                      {item.noInvoice}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    {item.noWorkOrder || "-"}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    {formatDate(item.tanggal)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-800 dark:text-white/90">
+                    {item.pelanggan}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    {item.kendaraan}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90">
+                    {formatCurrency(item.grandTotal)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90">
+                    {formatCurrency(item.sisaTagihan)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <Badge color={getStatusColor(item.status)}>
+                      {statusLabel(item.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <div className="flex gap-2">
+                      <Link href={`/keuangan/invoice/${item.id}`}>
+                        <Button size="sm" variant="outline">
+                          Detail
+                        </Button>
+                      </Link>
+                      {item.sisaTagihan > 0 && item.status !== "BATAL" && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => setPaymentInvoice(item)}
+                        >
+                          Bayar
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block overflow-x-auto">
-        <Table>
-          <TableHeader className="border-b border-gray-200 dark:border-gray-800">
-            <TableRow>
-              <TableCell isHeader className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90">
-                No. Invoice
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90">
-                Tanggal
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90">
-                Pelanggan
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90">
-                Kendaraan
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90">
-                Total Jasa
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90">
-                Total Sparepart
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90">
-                Total Invoice
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-center text-sm font-semibold text-gray-800 dark:text-white/90">
-                Status
-              </TableCell>
-              <TableCell isHeader className="px-6 py-4 text-center text-sm font-semibold text-gray-800 dark:text-white/90">
-                Aksi
-              </TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredData.map((item) => (
-              <TableRow key={item.id} className="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]">
-                <TableCell className="px-6 py-4">
-                  <Link href={`/keuangan/invoice/${item.id}`} className="font-medium text-brand-500 hover:text-brand-600">
-                    {item.id}
-                  </Link>
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                  {new Date(item.tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-gray-800 dark:text-white/90">
-                  {item.pelanggan}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                  {item.kendaraan}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-right text-sm text-gray-800 dark:text-white/90">
-                  {formatCurrency(item.totalJasa)}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-right text-sm text-gray-800 dark:text-white/90">
-                  {formatCurrency(item.totalSparepart)}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90">
-                  {formatCurrency(item.totalInvoice)}
-                </TableCell>
-                <TableCell className="px-6 py-4 text-center">
-                  {getStatusBadge(item.status)}
-                </TableCell>
-                <TableCell className="px-6 py-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <Button size="sm" variant="outline">Cetak</Button>
-                    {item.status === "Belum Lunas" && <Button size="sm" variant="primary">Bayar</Button>}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Summary */}
       <div className="border-t border-gray-200 px-4 py-4 dark:border-gray-800 sm:px-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Menampilkan {filteredData.length} dari {invoiceData.length} invoice
+            Menampilkan {filteredData.length} dari {invoices.length} invoice
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-6 text-sm">
+          <div className="flex flex-col gap-2 text-sm sm:flex-row sm:gap-6">
             <div>
-              <span className="text-gray-500 dark:text-gray-400">Total Lunas: </span>
-              <span className="font-semibold text-success-600">
-                {formatCurrency(filteredData.filter((i) => i.status === "Lunas").reduce((sum, i) => sum + i.totalInvoice, 0))}
+              <span className="text-gray-500 dark:text-gray-400">
+                Total Tagihan:{" "}
+              </span>
+              <span className="font-semibold text-gray-800 dark:text-white/90">
+                {formatCurrency(
+                  filteredData.reduce((sum, item) => sum + item.grandTotal, 0)
+                )}
               </span>
             </div>
             <div>
-              <span className="text-gray-500 dark:text-gray-400">Total Belum Lunas: </span>
+              <span className="text-gray-500 dark:text-gray-400">
+                Sisa Tagihan:{" "}
+              </span>
               <span className="font-semibold text-warning-600">
-                {formatCurrency(filteredData.filter((i) => i.status === "Belum Lunas").reduce((sum, i) => sum + i.totalInvoice, 0))}
+                {formatCurrency(
+                  filteredData.reduce((sum, item) => sum + item.sisaTagihan, 0)
+                )}
               </span>
             </div>
           </div>
         </div>
       </div>
+      {paymentInvoice && (
+        <PaymentModal
+          invoice={paymentInvoice}
+          metodePembayaranOptions={metodePembayaranOptions}
+          akunKasBankOptions={akunKasBankOptions}
+          onClose={() => setPaymentInvoice(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function PaymentModal({
+  invoice,
+  metodePembayaranOptions,
+  akunKasBankOptions,
+  onClose,
+}: {
+  invoice: InvoiceRow;
+  metodePembayaranOptions: {
+    value: string;
+    label: string;
+  }[];
+  akunKasBankOptions: {
+    value: string;
+    label: string;
+  }[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900/50 p-4">
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl dark:bg-gray-900">
+        <div className="border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                Pembayaran Invoice
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {invoice.noInvoice} | Sisa {formatCurrency(invoice.sisaTagihan)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[0.06]"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+        <form action={createPembayaranAction} className="space-y-4 p-5">
+          <input type="hidden" name="invoiceId" value={invoice.id} />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Tanggal">
+              <input
+                name="tanggal"
+                type="date"
+                defaultValue={toDateInput()}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+            </Field>
+            <Field label="Jumlah Bayar">
+              <input
+                name="jumlahBayar"
+                type="number"
+                min="1"
+                max={invoice.sisaTagihan}
+                defaultValue={invoice.sisaTagihan}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+            </Field>
+            <Field label="Metode Pembayaran">
+              <select
+                name="metodePembayaranId"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              >
+                <option value="">Pilih metode</option>
+                {metodePembayaranOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Akun Kas/Bank">
+              <select
+                name="akunKasBankId"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              >
+                <option value="">Tidak masuk kas/bank</option>
+                {akunKasBankOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="No. Referensi">
+              <input
+                name="nomorReferensi"
+                placeholder="No transfer / QRIS / struk"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+            </Field>
+            <Field label="Catatan">
+              <input
+                name="catatan"
+                placeholder="Catatan pembayaran"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+            </Field>
+          </div>
+          <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Batal
+            </Button>
+            <Button type="submit" variant="primary">
+              Simpan Pembayaran
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }

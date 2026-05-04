@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -11,6 +11,7 @@ import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Pagination from "@/components/tables/Pagination";
+import Link from "next/link";
 
 interface StokMinimum {
   id: string;
@@ -25,61 +26,27 @@ interface StokMinimum {
   hargaBeli: number;
 }
 
-const stokMinimumData: StokMinimum[] = [
-  {
-    id: "1",
-    kode: "SPR-005",
-    nama: "Aki GS 12V 5A",
-    kategori: "Kelistrikan",
-    supplier: "CV Maju Jaya Aki",
-    stok: 0,
-    satuan: "Pcs",
-    minStok: 3,
-    selisih: 3,
-    hargaBeli: 280000,
-  },
-  {
-    id: "2",
-    kode: "SPR-004",
-    nama: "Filter Udara Beat",
-    kategori: "Filter",
-    supplier: "PT Astra Honda Motor",
-    stok: 1,
-    satuan: "Pcs",
-    minStok: 8,
-    selisih: 7,
-    hargaBeli: 35000,
-  },
-  {
-    id: "3",
-    kode: "SPR-003",
-    nama: "Busi NGK Standard",
-    kategori: "Kelistrikan",
-    supplier: "PT NGK Busi Indonesia",
-    stok: 5,
-    satuan: "Pcs",
-    minStok: 15,
-    selisih: 10,
-    hargaBeli: 18000,
-  },
-  {
-    id: "4",
-    kode: "SPR-002",
-    nama: "Kampas Rem Depan Honda",
-    kategori: "Rem",
-    supplier: "PT Astra Honda Motor",
-    stok: 8,
-    satuan: "Set",
-    minStok: 10,
-    selisih: 2,
-    hargaBeli: 45000,
-  },
-];
+interface StokMinimumListProps {
+  items: StokMinimum[];
+}
 
-export default function StokMinimumList() {
+export default function StokMinimumList({ items }: StokMinimumListProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [query, setQuery] = useState("");
 
-  const totalNilai = stokMinimumData.reduce(
+  const filteredItems = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+
+    if (!keyword) return items;
+
+    return items.filter((item) =>
+      `${item.kode} ${item.nama} ${item.kategori} ${item.supplier}`
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [items, query]);
+
+  const totalNilai = filteredItems.reduce(
     (acc, item) => acc + item.selisih * item.hargaBeli,
     0
   );
@@ -93,7 +60,7 @@ export default function StokMinimumList() {
             Barang Stok Habis
           </p>
           <p className="text-2xl font-bold text-error-700 dark:text-error-300 mt-1">
-            {stokMinimumData.filter((item) => item.stok === 0).length} Item
+            {filteredItems.filter((item) => item.stok === 0).length} Item
           </p>
         </div>
         <div className="rounded-2xl border border-warning-200 bg-warning-50 p-5 dark:border-warning-500/30 dark:bg-warning-500/10">
@@ -101,7 +68,7 @@ export default function StokMinimumList() {
             Barang Stok Kritis
           </p>
           <p className="text-2xl font-bold text-warning-700 dark:text-warning-300 mt-1">
-            {stokMinimumData.filter((item) => item.stok > 0).length} Item
+            {filteredItems.filter((item) => item.stok > 0).length} Item
           </p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -123,11 +90,15 @@ export default function StokMinimumList() {
               type="text"
               placeholder="Cari barang..."
               className="w-full"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <Button size="md" variant="primary">
-            Buat Purchase Order
-          </Button>
+          <Link href="/pembelian/purchase-order/create">
+            <Button size="md" variant="primary">
+              Buat Purchase Order
+            </Button>
+          </Link>
         </div>
 
         {/* Table */}
@@ -136,6 +107,12 @@ export default function StokMinimumList() {
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                 <TableRow>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    No
+                  </TableCell>
                   <TableCell
                     isHeader
                     className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
@@ -188,8 +165,11 @@ export default function StokMinimumList() {
               </TableHeader>
 
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {stokMinimumData.map((item) => (
+                {filteredItems.map((item, index) => (
                   <TableRow key={item.id}>
+                    <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                      {index + 1}
+                    </TableCell>
                     <TableCell className="px-5 py-4 text-gray-800 text-start text-theme-sm font-medium dark:text-white/90">
                       {item.kode}
                     </TableCell>
@@ -234,6 +214,16 @@ export default function StokMinimumList() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {filteredItems.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      Tidak ada sparepart di bawah minimum.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -242,7 +232,7 @@ export default function StokMinimumList() {
         {/* Pagination */}
         <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-white/[0.05] sm:p-6">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Menampilkan 1-4 dari 4 data
+            Menampilkan {filteredItems.length} dari {items.length} data
           </p>
           <Pagination
             currentPage={currentPage}

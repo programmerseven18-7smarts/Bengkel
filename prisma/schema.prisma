@@ -1,0 +1,1116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+
+enum StatusData {
+  AKTIF
+  TIDAK_AKTIF
+}
+
+enum UserStatus {
+  AKTIF
+  NONAKTIF
+}
+
+enum MekanikStatus {
+  AKTIF
+  CUTI
+  TIDAK_AKTIF
+}
+
+enum JadwalServisStatus {
+  TERJADWAL
+  DATANG
+  BATAL
+  SELESAI
+}
+
+enum WorkOrderStatus {
+  DRAFT
+  ANTRI
+  DIKERJAKAN
+  MENUNGGU_PART
+  SELESAI
+  BATAL
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  DIKIRIM
+  DITERIMA
+  DIBATALKAN
+}
+
+enum PenerimaanBarangStatus {
+  DRAFT
+  PARSIAL
+  SELESAI
+  DIBATALKAN
+}
+
+enum ReturPembelianStatus {
+  DRAFT
+  DIKIRIM
+  SELESAI
+  DIBATALKAN
+}
+
+enum StokKeluarTipe {
+  SERVIS
+  PENJUALAN
+  RETUR
+  LAINNYA
+}
+
+enum StokMovementType {
+  MASUK
+  KELUAR
+  MUTASI
+}
+
+enum InvoiceItemTipe {
+  JASA
+  SPAREPART
+  LAINNYA
+}
+
+enum InvoiceStatus {
+  DRAFT
+  BELUM_LUNAS
+  SEBAGIAN
+  LUNAS
+  BATAL
+}
+
+enum PembayaranStatus {
+  DRAFT
+  SELESAI
+  BATAL
+}
+
+enum PiutangStatus {
+  BELUM_LUNAS
+  SEBAGIAN
+  JATUH_TEMPO
+  LUNAS
+}
+
+enum KasBankJenis {
+  MASUK
+  KELUAR
+}
+
+enum ReminderStatus {
+  TERJADWAL
+  DIKIRIM
+  SELESAI
+  LEWAT
+}
+
+// -----------------------------------------------------------------------------
+// IAM - no m_/t_ prefix by request
+// -----------------------------------------------------------------------------
+
+model User {
+  id            String     @id @default(cuid())
+  nama          String     @db.VarChar(150)
+  email         String     @unique @db.VarChar(150)
+  passwordHash  String?    @map("password_hash") @db.Text
+  noHp          String?    @map("no_hp") @db.VarChar(30)
+  status        UserStatus @default(AKTIF)
+  terakhirLogin DateTime?  @map("terakhir_login")
+  roleId        String?    @map("role_id")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  role                  Role?              @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  jadwalCreated         JadwalServis[]     @relation("JadwalCreatedBy")
+  workOrdersCreated     WorkOrder[]        @relation("WorkOrderCreatedBy")
+  penerimaanDiterima    PenerimaanBarang[] @relation("PenerimaanDiterimaOleh")
+  mutasiPenanggungJawab MutasiStok[]       @relation("MutasiPenanggungJawab")
+  pembayaranKasir       Pembayaran[]       @relation("PembayaranKasir")
+  kasBankCreated        KasBankTransaksi[] @relation("KasBankCreatedBy")
+  auditLogs             AuditLog[]         @relation("AuditLogUser")
+
+  @@index([roleId])
+  @@map("users")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String   @db.VarChar(80)
+  entity    String   @db.VarChar(120)
+  entityId  String?  @map("entity_id")
+  entityNo  String?  @map("entity_no") @db.VarChar(120)
+  status    String?  @db.VarChar(40)
+  message   String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation("AuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model Role {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(40)
+  nama      String     @unique @db.VarChar(80)
+  deskripsi String?    @db.Text
+  isDefault Boolean    @default(false) @map("is_default")
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id        String   @id @default(cuid())
+  kode      String   @unique @db.VarChar(120)
+  module    String   @db.VarChar(80)
+  resource  String   @db.VarChar(120)
+  action    String   @db.VarChar(40)
+  deskripsi String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  roles RolePermission[]
+
+  @@index([module, resource])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String   @map("role_id")
+  permissionId String   @map("permission_id")
+  allowed      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// -----------------------------------------------------------------------------
+// MASTER DATA - m_ prefix
+// -----------------------------------------------------------------------------
+
+model Pelanggan {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @db.VarChar(150)
+  noHp      String?    @map("no_hp") @db.VarChar(30)
+  email     String?    @unique @db.VarChar(150)
+  alamat    String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  kendaraan    Kendaraan[]
+  jadwalServis JadwalServis[]
+  workOrders   WorkOrder[]
+  invoices     Invoice[]
+  piutang      Piutang[]
+  reminders    ReminderServis[]
+  pembayaran   Pembayaran[]
+
+  @@map("m_pelanggan")
+}
+
+model MerkKendaraan {
+  id             String     @id @default(cuid())
+  kode           String     @unique @db.VarChar(32)
+  nama           String     @db.VarChar(100)
+  jenisKendaraan String?    @map("jenis_kendaraan") @db.VarChar(50)
+  deskripsi      String?    @db.Text
+  status         StatusData @default(AKTIF)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  kendaraan Kendaraan[]
+
+  @@map("m_merk_kendaraan")
+}
+
+model Kendaraan {
+  id          String   @id @default(cuid())
+  pelangganId String   @map("pelanggan_id")
+  merkId      String?  @map("merk_id")
+  platNomor   String   @unique @map("plat_nomor") @db.VarChar(24)
+  tipe        String   @db.VarChar(100)
+  tahun       Int?
+  warna       String?  @db.VarChar(60)
+  noRangka    String?  @unique @map("no_rangka") @db.VarChar(100)
+  noMesin     String?  @unique @map("no_mesin") @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  pelanggan    Pelanggan        @relation(fields: [pelangganId], references: [id], onDelete: Restrict)
+  merk         MerkKendaraan?   @relation(fields: [merkId], references: [id], onDelete: SetNull)
+  jadwalServis JadwalServis[]
+  workOrders   WorkOrder[]
+  invoices     Invoice[]
+  reminders    ReminderServis[]
+
+  @@index([pelangganId])
+  @@index([merkId])
+  @@map("m_kendaraan")
+}
+
+model Mekanik {
+  id               String        @id @default(cuid())
+  kode             String        @unique @db.VarChar(32)
+  nama             String        @db.VarChar(150)
+  noHp             String?       @map("no_hp") @db.VarChar(30)
+  spesialisasi     String?       @db.VarChar(150)
+  tanggalBergabung DateTime?     @map("tanggal_bergabung")
+  rating           Decimal       @default(0) @db.Decimal(3, 2)
+  status           MekanikStatus @default(AKTIF)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  jadwalServis JadwalServis[]
+  workOrders   WorkOrder[]
+
+  @@map("m_mekanik")
+}
+
+model Supplier {
+  id             String     @id @default(cuid())
+  kode           String     @unique @db.VarChar(32)
+  nama           String     @db.VarChar(150)
+  noHp           String?    @map("no_hp") @db.VarChar(30)
+  email          String?    @db.VarChar(150)
+  alamat         String?    @db.Text
+  produkUtama    String?    @map("produk_utama") @db.VarChar(150)
+  totalTransaksi Int        @default(0) @map("total_transaksi")
+  status         StatusData @default(AKTIF)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  spareparts       Sparepart[]
+  purchaseOrders   PurchaseOrder[]
+  penerimaanBarang PenerimaanBarang[]
+  returPembelian   ReturPembelian[]
+  stokMasuk        StokMasuk[]
+
+  @@map("m_supplier")
+}
+
+model KategoriSparepart {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @unique @db.VarChar(100)
+  deskripsi String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  spareparts Sparepart[]
+
+  @@map("m_kategori_sparepart")
+}
+
+model KategoriJasaServis {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @unique @db.VarChar(100)
+  deskripsi String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  jasaServis JasaServis[]
+
+  @@map("m_kategori_jasa_servis")
+}
+
+model Satuan {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @db.VarChar(80)
+  jenis     String?    @db.VarChar(80)
+  deskripsi String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  spareparts Sparepart[]
+
+  @@map("m_satuan")
+}
+
+model LokasiStok {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @db.VarChar(120)
+  tipe      String?    @db.VarChar(80)
+  deskripsi String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  spareparts   Sparepart[]
+  mutasiAsal   MutasiStok[] @relation("MutasiLokasiAsal")
+  mutasiTujuan MutasiStok[] @relation("MutasiLokasiTujuan")
+  stokLedger   StokLedger[]
+
+  @@map("m_lokasi_stok")
+}
+
+model Sparepart {
+  id         String     @id @default(cuid())
+  kode       String     @unique @db.VarChar(32)
+  nama       String     @db.VarChar(180)
+  kategoriId String?    @map("kategori_id")
+  supplierId String?    @map("supplier_id")
+  satuanId   String?    @map("satuan_id")
+  lokasiId   String?    @map("lokasi_id")
+  stok       Int        @default(0)
+  minStok    Int        @default(0) @map("min_stok")
+  hargaBeli  Decimal    @default(0) @map("harga_beli") @db.Decimal(14, 2)
+  hargaJual  Decimal    @default(0) @map("harga_jual") @db.Decimal(14, 2)
+  status     StatusData @default(AKTIF)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  kategori           KategoriSparepart?     @relation(fields: [kategoriId], references: [id], onDelete: SetNull)
+  supplier           Supplier?              @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  satuan             Satuan?                @relation(fields: [satuanId], references: [id], onDelete: SetNull)
+  lokasi             LokasiStok?            @relation(fields: [lokasiId], references: [id], onDelete: SetNull)
+  paketItems         PaketServisSparepart[]
+  workOrderItems     WorkOrderSparepart[]
+  purchaseOrderItems PurchaseOrderItem[]
+  penerimaanItems    PenerimaanBarangItem[]
+  returItems         ReturPembelianItem[]
+  stokMasukItems     StokMasukItem[]
+  stokKeluarItems    StokKeluarItem[]
+  mutasiItems        MutasiStokItem[]
+  stokLedger         StokLedger[]
+  invoiceItems       InvoiceItem[]
+
+  @@index([kategoriId])
+  @@index([supplierId])
+  @@index([satuanId])
+  @@index([lokasiId])
+  @@map("m_sparepart")
+}
+
+model JasaServis {
+  id            String     @id @default(cuid())
+  kode          String     @unique @db.VarChar(32)
+  nama          String     @db.VarChar(150)
+  kategoriId    String?    @map("kategori_id")
+  harga         Decimal    @default(0) @db.Decimal(14, 2)
+  estimasiMenit Int?       @map("estimasi_menit")
+  deskripsi     String?    @db.Text
+  status        StatusData @default(AKTIF)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  kategori       KategoriJasaServis? @relation(fields: [kategoriId], references: [id], onDelete: SetNull)
+  paketItems     PaketServisJasa[]
+  workOrderItems WorkOrderJasa[]
+  invoiceItems   InvoiceItem[]
+  jadwalServis   JadwalServis[]
+
+  @@index([kategoriId])
+  @@map("m_jasa_servis")
+}
+
+model PaketServis {
+  id             String     @id @default(cuid())
+  kode           String     @unique @db.VarChar(32)
+  nama           String     @db.VarChar(150)
+  jenisKendaraan String?    @map("jenis_kendaraan") @db.VarChar(80)
+  estimasiMenit  Int?       @map("estimasi_menit")
+  hargaPaket     Decimal    @default(0) @map("harga_paket") @db.Decimal(14, 2)
+  catatan        String?    @db.Text
+  status         StatusData @default(AKTIF)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  jasaItems      PaketServisJasa[]
+  sparepartItems PaketServisSparepart[]
+  workOrders     WorkOrder[]
+
+  @@map("m_paket_servis")
+}
+
+model PaketServisJasa {
+  id            String  @id @default(cuid())
+  paketServisId String  @map("paket_servis_id")
+  jasaServisId  String  @map("jasa_servis_id")
+  estimasiMenit Int?    @map("estimasi_menit")
+  hargaNormal   Decimal @default(0) @map("harga_normal") @db.Decimal(14, 2)
+
+  paketServis PaketServis @relation(fields: [paketServisId], references: [id], onDelete: Cascade)
+  jasaServis  JasaServis  @relation(fields: [jasaServisId], references: [id], onDelete: Restrict)
+
+  @@unique([paketServisId, jasaServisId])
+  @@index([jasaServisId])
+  @@map("m_paket_servis_jasa")
+}
+
+model PaketServisSparepart {
+  id            String  @id @default(cuid())
+  paketServisId String  @map("paket_servis_id")
+  sparepartId   String  @map("sparepart_id")
+  qty           Decimal @default(1) @db.Decimal(12, 2)
+  hargaNormal   Decimal @default(0) @map("harga_normal") @db.Decimal(14, 2)
+
+  paketServis PaketServis @relation(fields: [paketServisId], references: [id], onDelete: Cascade)
+  sparepart   Sparepart   @relation(fields: [sparepartId], references: [id], onDelete: Restrict)
+
+  @@unique([paketServisId, sparepartId])
+  @@index([sparepartId])
+  @@map("m_paket_servis_sparepart")
+}
+
+model AlasanRetur {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @db.VarChar(120)
+  jenis     String?    @db.VarChar(80)
+  deskripsi String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  returPembelian ReturPembelian[]
+  returItems     ReturPembelianItem[]
+
+  @@map("m_alasan_retur")
+}
+
+model KondisiBarang {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @db.VarChar(120)
+  kelompok  String?    @db.VarChar(80)
+  deskripsi String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  penerimaanItems PenerimaanBarangItem[]
+
+  @@map("m_kondisi_barang")
+}
+
+model MetodePembayaran {
+  id        String     @id @default(cuid())
+  kode      String     @unique @db.VarChar(32)
+  nama      String     @db.VarChar(120)
+  tipe      String?    @db.VarChar(80)
+  deskripsi String?    @db.Text
+  status    StatusData @default(AKTIF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  pembayaran Pembayaran[]
+
+  @@map("m_metode_pembayaran")
+}
+
+model AkunKasBank {
+  id         String     @id @default(cuid())
+  kode       String     @unique @db.VarChar(32)
+  nama       String     @db.VarChar(120)
+  tipe       String     @db.VarChar(80)
+  namaBank   String?    @map("nama_bank") @db.VarChar(120)
+  noRekening String?    @map("no_rekening") @db.VarChar(80)
+  saldoAwal  Decimal    @default(0) @map("saldo_awal") @db.Decimal(16, 2)
+  status     StatusData @default(AKTIF)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  pembayaran       Pembayaran[]
+  kasBankTransaksi KasBankTransaksi[]
+
+  @@map("m_akun_kas_bank")
+}
+
+// -----------------------------------------------------------------------------
+// TRANSAKSI SERVIS - t_ prefix
+// -----------------------------------------------------------------------------
+
+model JadwalServis {
+  id           String             @id @default(cuid())
+  noJadwal     String             @unique @map("no_jadwal") @db.VarChar(40)
+  tanggal      DateTime
+  jam          String?            @db.VarChar(20)
+  pelangganId  String             @map("pelanggan_id")
+  kendaraanId  String             @map("kendaraan_id")
+  jasaServisId String?            @map("jasa_servis_id")
+  mekanikId    String?            @map("mekanik_id")
+  keluhan      String?            @db.Text
+  status       JadwalServisStatus @default(TERJADWAL)
+  createdById  String?            @map("created_by_id")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  pelanggan  Pelanggan   @relation(fields: [pelangganId], references: [id], onDelete: Restrict)
+  kendaraan  Kendaraan   @relation(fields: [kendaraanId], references: [id], onDelete: Restrict)
+  jasaServis JasaServis? @relation(fields: [jasaServisId], references: [id], onDelete: SetNull)
+  mekanik    Mekanik?    @relation(fields: [mekanikId], references: [id], onDelete: SetNull)
+  createdBy  User?       @relation("JadwalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([pelangganId])
+  @@index([kendaraanId])
+  @@index([jasaServisId])
+  @@index([mekanikId])
+  @@index([createdById])
+  @@map("t_jadwal_servis")
+}
+
+model WorkOrder {
+  id              String          @id @default(cuid())
+  noWorkOrder     String          @unique @map("no_work_order") @db.VarChar(40)
+  tanggalMasuk    DateTime        @default(now()) @map("tanggal_masuk")
+  estimasiSelesai DateTime?       @map("estimasi_selesai")
+  pelangganId     String          @map("pelanggan_id")
+  kendaraanId     String          @map("kendaraan_id")
+  mekanikId       String?         @map("mekanik_id")
+  paketServisId   String?         @map("paket_servis_id")
+  status          WorkOrderStatus @default(DRAFT)
+  keluhan         String?         @db.Text
+  catatan         String?         @db.Text
+  odometer        Int?
+  totalJasa       Decimal         @default(0) @map("total_jasa") @db.Decimal(14, 2)
+  totalSparepart  Decimal         @default(0) @map("total_sparepart") @db.Decimal(14, 2)
+  grandTotal      Decimal         @default(0) @map("grand_total") @db.Decimal(14, 2)
+  createdById     String?         @map("created_by_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  pelanggan      Pelanggan            @relation(fields: [pelangganId], references: [id], onDelete: Restrict)
+  kendaraan      Kendaraan            @relation(fields: [kendaraanId], references: [id], onDelete: Restrict)
+  mekanik        Mekanik?             @relation(fields: [mekanikId], references: [id], onDelete: SetNull)
+  paketServis    PaketServis?         @relation(fields: [paketServisId], references: [id], onDelete: SetNull)
+  createdBy      User?                @relation("WorkOrderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  jasaItems      WorkOrderJasa[]
+  sparepartItems WorkOrderSparepart[]
+  stokKeluar     StokKeluar[]
+  invoice        Invoice?
+
+  @@index([pelangganId])
+  @@index([kendaraanId])
+  @@index([mekanikId])
+  @@index([paketServisId])
+  @@index([createdById])
+  @@map("t_work_order")
+}
+
+model WorkOrderJasa {
+  id             String  @id @default(cuid())
+  workOrderId    String  @map("work_order_id")
+  jasaServisId   String? @map("jasa_servis_id")
+  namaJasa       String  @map("nama_jasa") @db.VarChar(150)
+  kategori       String? @db.VarChar(100)
+  estimasiMenit  Int?    @map("estimasi_menit")
+  harga          Decimal @default(0) @db.Decimal(14, 2)
+  catatanMekanik String? @map("catatan_mekanik") @db.Text
+
+  workOrder  WorkOrder   @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  jasaServis JasaServis? @relation(fields: [jasaServisId], references: [id], onDelete: SetNull)
+
+  @@index([workOrderId])
+  @@index([jasaServisId])
+  @@map("t_work_order_jasa")
+}
+
+model WorkOrderSparepart {
+  id            String  @id @default(cuid())
+  workOrderId   String  @map("work_order_id")
+  sparepartId   String? @map("sparepart_id")
+  namaSparepart String  @map("nama_sparepart") @db.VarChar(180)
+  stokSaatItu   Int?    @map("stok_saat_itu")
+  qty           Decimal @default(1) @db.Decimal(12, 2)
+  satuan        String? @db.VarChar(40)
+  hargaJual     Decimal @default(0) @map("harga_jual") @db.Decimal(14, 2)
+  subtotal      Decimal @default(0) @db.Decimal(14, 2)
+  catatan       String? @db.Text
+
+  workOrder WorkOrder  @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  sparepart Sparepart? @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+
+  @@index([workOrderId])
+  @@index([sparepartId])
+  @@map("t_work_order_sparepart")
+}
+
+model ReminderServis {
+  id            String         @id @default(cuid())
+  pelangganId   String         @map("pelanggan_id")
+  kendaraanId   String         @map("kendaraan_id")
+  jenisReminder String         @map("jenis_reminder") @db.VarChar(150)
+  jatuhTempo    DateTime       @map("jatuh_tempo")
+  kanal         String         @db.VarChar(40)
+  status        ReminderStatus @default(TERJADWAL)
+  catatan       String?        @db.Text
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  pelanggan Pelanggan @relation(fields: [pelangganId], references: [id], onDelete: Restrict)
+  kendaraan Kendaraan @relation(fields: [kendaraanId], references: [id], onDelete: Restrict)
+
+  @@index([pelangganId])
+  @@index([kendaraanId])
+  @@map("t_reminder_servis")
+}
+
+// -----------------------------------------------------------------------------
+// TRANSAKSI PEMBELIAN - t_ prefix
+// -----------------------------------------------------------------------------
+
+model PurchaseOrder {
+  id              String              @id @default(cuid())
+  noPurchaseOrder String              @unique @map("no_purchase_order") @db.VarChar(40)
+  tanggal         DateTime
+  supplierId      String              @map("supplier_id")
+  estimasiDatang  DateTime?           @map("estimasi_datang")
+  status          PurchaseOrderStatus @default(DRAFT)
+  catatan         String?             @db.Text
+  totalItem       Int                 @default(0) @map("total_item")
+  totalNilai      Decimal             @default(0) @map("total_nilai") @db.Decimal(16, 2)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  supplier         Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items            PurchaseOrderItem[]
+  penerimaanBarang PenerimaanBarang[]
+
+  @@index([supplierId])
+  @@map("t_purchase_order")
+}
+
+model PurchaseOrderItem {
+  id              String  @id @default(cuid())
+  purchaseOrderId String  @map("purchase_order_id")
+  sparepartId     String? @map("sparepart_id")
+  namaSparepart   String  @map("nama_sparepart") @db.VarChar(180)
+  stokSaatIni     Int?    @map("stok_saat_ini")
+  qtyPesan        Decimal @default(1) @map("qty_pesan") @db.Decimal(12, 2)
+  qtyDiterima     Decimal @default(0) @map("qty_diterima") @db.Decimal(12, 2)
+  satuan          String? @db.VarChar(40)
+  hargaBeli       Decimal @default(0) @map("harga_beli") @db.Decimal(14, 2)
+  subtotal        Decimal @default(0) @db.Decimal(16, 2)
+  catatan         String? @db.Text
+
+  purchaseOrder PurchaseOrder          @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  sparepart     Sparepart?             @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+  penerimaan    PenerimaanBarangItem[]
+
+  @@index([purchaseOrderId])
+  @@index([sparepartId])
+  @@map("t_purchase_order_item")
+}
+
+model PenerimaanBarang {
+  id              String                 @id @default(cuid())
+  noPenerimaan    String                 @unique @map("no_penerimaan") @db.VarChar(40)
+  purchaseOrderId String?                @map("purchase_order_id")
+  supplierId      String                 @map("supplier_id")
+  tanggalTerima   DateTime               @map("tanggal_terima")
+  diterimaOlehId  String?                @map("diterima_oleh_id")
+  status          PenerimaanBarangStatus @default(DRAFT)
+  catatan         String?                @db.Text
+  totalItem       Int                    @default(0) @map("total_item")
+  totalNilai      Decimal                @default(0) @map("total_nilai") @db.Decimal(16, 2)
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  purchaseOrder PurchaseOrder?         @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier      Supplier               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  diterimaOleh  User?                  @relation("PenerimaanDiterimaOleh", fields: [diterimaOlehId], references: [id], onDelete: SetNull)
+  items         PenerimaanBarangItem[]
+  retur         ReturPembelian[]
+
+  @@index([purchaseOrderId])
+  @@index([supplierId])
+  @@index([diterimaOlehId])
+  @@map("t_penerimaan_barang")
+}
+
+model PenerimaanBarangItem {
+  id                  String  @id @default(cuid())
+  penerimaanBarangId  String  @map("penerimaan_barang_id")
+  purchaseOrderItemId String? @map("purchase_order_item_id")
+  sparepartId         String? @map("sparepart_id")
+  kondisiBarangId     String? @map("kondisi_barang_id")
+  namaSparepart       String  @map("nama_sparepart") @db.VarChar(180)
+  qtyPo               Decimal @default(0) @map("qty_po") @db.Decimal(12, 2)
+  qtyTerima           Decimal @default(0) @map("qty_terima") @db.Decimal(12, 2)
+  satuan              String? @db.VarChar(40)
+  hargaBeli           Decimal @default(0) @map("harga_beli") @db.Decimal(14, 2)
+  subtotal            Decimal @default(0) @db.Decimal(16, 2)
+  catatan             String? @db.Text
+
+  penerimaanBarang  PenerimaanBarang     @relation(fields: [penerimaanBarangId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem?   @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
+  sparepart         Sparepart?           @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+  kondisiBarang     KondisiBarang?       @relation(fields: [kondisiBarangId], references: [id], onDelete: SetNull)
+  returItems        ReturPembelianItem[]
+
+  @@index([penerimaanBarangId])
+  @@index([purchaseOrderItemId])
+  @@index([sparepartId])
+  @@index([kondisiBarangId])
+  @@map("t_penerimaan_barang_item")
+}
+
+model ReturPembelian {
+  id                 String               @id @default(cuid())
+  noRetur            String               @unique @map("no_retur") @db.VarChar(40)
+  penerimaanBarangId String?              @map("penerimaan_barang_id")
+  supplierId         String               @map("supplier_id")
+  alasanReturId      String?              @map("alasan_retur_id")
+  tanggalRetur       DateTime             @map("tanggal_retur")
+  status             ReturPembelianStatus @default(DRAFT)
+  catatan            String?              @db.Text
+  totalItem          Int                  @default(0) @map("total_item")
+  totalNilai         Decimal              @default(0) @map("total_nilai") @db.Decimal(16, 2)
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  penerimaanBarang PenerimaanBarang?    @relation(fields: [penerimaanBarangId], references: [id], onDelete: SetNull)
+  supplier         Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  alasanRetur      AlasanRetur?         @relation(fields: [alasanReturId], references: [id], onDelete: SetNull)
+  items            ReturPembelianItem[]
+
+  @@index([penerimaanBarangId])
+  @@index([supplierId])
+  @@index([alasanReturId])
+  @@map("t_retur_pembelian")
+}
+
+model ReturPembelianItem {
+  id                     String  @id @default(cuid())
+  returPembelianId       String  @map("retur_pembelian_id")
+  penerimaanBarangItemId String? @map("penerimaan_barang_item_id")
+  sparepartId            String? @map("sparepart_id")
+  alasanReturId          String? @map("alasan_retur_id")
+  namaSparepart          String  @map("nama_sparepart") @db.VarChar(180)
+  qtyDiterima            Decimal @default(0) @map("qty_diterima") @db.Decimal(12, 2)
+  qtyRetur               Decimal @default(0) @map("qty_retur") @db.Decimal(12, 2)
+  satuan                 String? @db.VarChar(40)
+  hargaBeli              Decimal @default(0) @map("harga_beli") @db.Decimal(14, 2)
+  subtotal               Decimal @default(0) @db.Decimal(16, 2)
+
+  returPembelian       ReturPembelian        @relation(fields: [returPembelianId], references: [id], onDelete: Cascade)
+  penerimaanBarangItem PenerimaanBarangItem? @relation(fields: [penerimaanBarangItemId], references: [id], onDelete: SetNull)
+  sparepart            Sparepart?            @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+  alasanRetur          AlasanRetur?          @relation(fields: [alasanReturId], references: [id], onDelete: SetNull)
+
+  @@index([returPembelianId])
+  @@index([penerimaanBarangItemId])
+  @@index([sparepartId])
+  @@index([alasanReturId])
+  @@map("t_retur_pembelian_item")
+}
+
+// -----------------------------------------------------------------------------
+// TRANSAKSI INVENTORY - t_ prefix
+// -----------------------------------------------------------------------------
+
+model StokMasuk {
+  id          String   @id @default(cuid())
+  noTransaksi String   @unique @map("no_transaksi") @db.VarChar(40)
+  tanggal     DateTime
+  sumber      String   @db.VarChar(80)
+  supplierId  String?  @map("supplier_id")
+  referensi   String?  @db.VarChar(80)
+  catatan     String?  @db.Text
+  totalItem   Int      @default(0) @map("total_item")
+  totalNilai  Decimal  @default(0) @map("total_nilai") @db.Decimal(16, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  supplier Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items    StokMasukItem[]
+
+  @@index([supplierId])
+  @@map("t_stok_masuk")
+}
+
+model StokMasukItem {
+  id            String  @id @default(cuid())
+  stokMasukId   String  @map("stok_masuk_id")
+  sparepartId   String? @map("sparepart_id")
+  namaSparepart String  @map("nama_sparepart") @db.VarChar(180)
+  qtyMasuk      Decimal @default(0) @map("qty_masuk") @db.Decimal(12, 2)
+  satuan        String? @db.VarChar(40)
+  hargaModal    Decimal @default(0) @map("harga_modal") @db.Decimal(14, 2)
+  subtotal      Decimal @default(0) @db.Decimal(16, 2)
+  catatan       String? @db.Text
+
+  stokMasuk StokMasuk  @relation(fields: [stokMasukId], references: [id], onDelete: Cascade)
+  sparepart Sparepart? @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+
+  @@index([stokMasukId])
+  @@index([sparepartId])
+  @@map("t_stok_masuk_item")
+}
+
+model StokKeluar {
+  id          String         @id @default(cuid())
+  noTransaksi String         @unique @map("no_transaksi") @db.VarChar(40)
+  tanggal     DateTime
+  tipe        StokKeluarTipe
+  referensi   String?        @db.VarChar(80)
+  dimintaOleh String?        @map("diminta_oleh") @db.VarChar(150)
+  workOrderId String?        @map("work_order_id")
+  catatan     String?        @db.Text
+  totalItem   Int            @default(0) @map("total_item")
+  totalNilai  Decimal        @default(0) @map("total_nilai") @db.Decimal(16, 2)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  workOrder WorkOrder?       @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  items     StokKeluarItem[]
+
+  @@index([workOrderId])
+  @@map("t_stok_keluar")
+}
+
+model StokKeluarItem {
+  id            String  @id @default(cuid())
+  stokKeluarId  String  @map("stok_keluar_id")
+  sparepartId   String? @map("sparepart_id")
+  namaSparepart String  @map("nama_sparepart") @db.VarChar(180)
+  stokSaatItu   Int?    @map("stok_saat_itu")
+  qtyKeluar     Decimal @default(0) @map("qty_keluar") @db.Decimal(12, 2)
+  satuan        String? @db.VarChar(40)
+  hargaModal    Decimal @default(0) @map("harga_modal") @db.Decimal(14, 2)
+  subtotal      Decimal @default(0) @db.Decimal(16, 2)
+  catatan       String? @db.Text
+
+  stokKeluar StokKeluar @relation(fields: [stokKeluarId], references: [id], onDelete: Cascade)
+  sparepart  Sparepart? @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+
+  @@index([stokKeluarId])
+  @@index([sparepartId])
+  @@map("t_stok_keluar_item")
+}
+
+model MutasiStok {
+  id                String   @id @default(cuid())
+  noMutasi          String   @unique @map("no_mutasi") @db.VarChar(40)
+  tanggal           DateTime
+  lokasiAsalId      String   @map("lokasi_asal_id")
+  lokasiTujuanId    String   @map("lokasi_tujuan_id")
+  penanggungJawabId String?  @map("penanggung_jawab_id")
+  catatan           String?  @db.Text
+  totalQty          Decimal  @default(0) @map("total_qty") @db.Decimal(12, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  lokasiAsal      LokasiStok       @relation("MutasiLokasiAsal", fields: [lokasiAsalId], references: [id], onDelete: Restrict)
+  lokasiTujuan    LokasiStok       @relation("MutasiLokasiTujuan", fields: [lokasiTujuanId], references: [id], onDelete: Restrict)
+  penanggungJawab User?            @relation("MutasiPenanggungJawab", fields: [penanggungJawabId], references: [id], onDelete: SetNull)
+  items           MutasiStokItem[]
+
+  @@index([lokasiAsalId])
+  @@index([lokasiTujuanId])
+  @@index([penanggungJawabId])
+  @@map("t_mutasi_stok")
+}
+
+model MutasiStokItem {
+  id            String  @id @default(cuid())
+  mutasiStokId  String  @map("mutasi_stok_id")
+  sparepartId   String? @map("sparepart_id")
+  namaSparepart String  @map("nama_sparepart") @db.VarChar(180)
+  stokAsal      Int?    @map("stok_asal")
+  qtyMutasi     Decimal @default(0) @map("qty_mutasi") @db.Decimal(12, 2)
+  satuan        String? @db.VarChar(40)
+  catatan       String? @db.Text
+
+  mutasiStok MutasiStok @relation(fields: [mutasiStokId], references: [id], onDelete: Cascade)
+  sparepart  Sparepart? @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+
+  @@index([mutasiStokId])
+  @@index([sparepartId])
+  @@map("t_mutasi_stok_item")
+}
+
+model StokLedger {
+  id          String           @id @default(cuid())
+  tanggal     DateTime         @default(now())
+  sparepartId String           @map("sparepart_id")
+  lokasiId    String?          @map("lokasi_id")
+  tipe        StokMovementType
+  qtyMasuk    Decimal          @default(0) @map("qty_masuk") @db.Decimal(12, 2)
+  qtyKeluar   Decimal          @default(0) @map("qty_keluar") @db.Decimal(12, 2)
+  stokSebelum Decimal          @default(0) @map("stok_sebelum") @db.Decimal(12, 2)
+  stokSesudah Decimal          @default(0) @map("stok_sesudah") @db.Decimal(12, 2)
+  satuan      String?          @db.VarChar(40)
+  hargaModal  Decimal          @default(0) @map("harga_modal") @db.Decimal(14, 2)
+  refTipe     String?          @map("ref_tipe") @db.VarChar(80)
+  refId       String?          @map("ref_id")
+  refNo       String?          @map("ref_no") @db.VarChar(80)
+  catatan     String?          @db.Text
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  sparepart Sparepart   @relation(fields: [sparepartId], references: [id], onDelete: Restrict)
+  lokasi    LokasiStok? @relation(fields: [lokasiId], references: [id], onDelete: SetNull)
+
+  @@index([sparepartId])
+  @@index([lokasiId])
+  @@index([refTipe, refId])
+  @@map("t_stok_ledger")
+}
+
+// -----------------------------------------------------------------------------
+// TRANSAKSI KEUANGAN - t_ prefix
+// -----------------------------------------------------------------------------
+
+model Invoice {
+  id             String        @id @default(cuid())
+  noInvoice      String        @unique @map("no_invoice") @db.VarChar(40)
+  workOrderId    String?       @unique @map("work_order_id")
+  pelangganId    String        @map("pelanggan_id")
+  kendaraanId    String?       @map("kendaraan_id")
+  tanggalInvoice DateTime      @map("tanggal_invoice")
+  jatuhTempo     DateTime?     @map("jatuh_tempo")
+  status         InvoiceStatus @default(DRAFT)
+  totalJasa      Decimal       @default(0) @map("total_jasa") @db.Decimal(16, 2)
+  totalSparepart Decimal       @default(0) @map("total_sparepart") @db.Decimal(16, 2)
+  totalLainnya   Decimal       @default(0) @map("total_lainnya") @db.Decimal(16, 2)
+  grandTotal     Decimal       @default(0) @map("grand_total") @db.Decimal(16, 2)
+  terbayar       Decimal       @default(0) @db.Decimal(16, 2)
+  sisaTagihan    Decimal       @default(0) @map("sisa_tagihan") @db.Decimal(16, 2)
+  catatan        String?       @db.Text
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  workOrder  WorkOrder?    @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  pelanggan  Pelanggan     @relation(fields: [pelangganId], references: [id], onDelete: Restrict)
+  kendaraan  Kendaraan?    @relation(fields: [kendaraanId], references: [id], onDelete: SetNull)
+  items      InvoiceItem[]
+  pembayaran Pembayaran[]
+  piutang    Piutang?
+
+  @@index([pelangganId])
+  @@index([kendaraanId])
+  @@map("t_invoice")
+}
+
+model InvoiceItem {
+  id           String          @id @default(cuid())
+  invoiceId    String          @map("invoice_id")
+  tipe         InvoiceItemTipe
+  deskripsi    String          @db.VarChar(180)
+  jasaServisId String?         @map("jasa_servis_id")
+  sparepartId  String?         @map("sparepart_id")
+  qty          Decimal         @default(1) @db.Decimal(12, 2)
+  harga        Decimal         @default(0) @db.Decimal(14, 2)
+  subtotal     Decimal         @default(0) @db.Decimal(16, 2)
+
+  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  jasaServis JasaServis? @relation(fields: [jasaServisId], references: [id], onDelete: SetNull)
+  sparepart  Sparepart?  @relation(fields: [sparepartId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([jasaServisId])
+  @@index([sparepartId])
+  @@map("t_invoice_item")
+}
+
+model Pembayaran {
+  id                 String           @id @default(cuid())
+  noPembayaran       String           @unique @map("no_pembayaran") @db.VarChar(40)
+  invoiceId          String           @map("invoice_id")
+  pelangganId        String?          @map("pelanggan_id")
+  tanggal            DateTime
+  metodePembayaranId String?          @map("metode_pembayaran_id")
+  akunKasBankId      String?          @map("akun_kas_bank_id")
+  jumlahBayar        Decimal          @default(0) @map("jumlah_bayar") @db.Decimal(16, 2)
+  nomorReferensi     String?          @map("nomor_referensi") @db.VarChar(120)
+  kasirId            String?          @map("kasir_id")
+  status             PembayaranStatus @default(SELESAI)
+  catatan            String?          @db.Text
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  invoice          Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  pelanggan        Pelanggan?        @relation(fields: [pelangganId], references: [id], onDelete: SetNull)
+  metodePembayaran MetodePembayaran? @relation(fields: [metodePembayaranId], references: [id], onDelete: SetNull)
+  akunKasBank      AkunKasBank?      @relation(fields: [akunKasBankId], references: [id], onDelete: SetNull)
+  kasir            User?             @relation("PembayaranKasir", fields: [kasirId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([pelangganId])
+  @@index([metodePembayaranId])
+  @@index([akunKasBankId])
+  @@index([kasirId])
+  @@map("t_pembayaran")
+}
+
+model Piutang {
+  id           String        @id @default(cuid())
+  invoiceId    String        @unique @map("invoice_id")
+  pelangganId  String        @map("pelanggan_id")
+  tanggal      DateTime
+  jatuhTempo   DateTime?     @map("jatuh_tempo")
+  totalTagihan Decimal       @default(0) @map("total_tagihan") @db.Decimal(16, 2)
+  terbayar     Decimal       @default(0) @db.Decimal(16, 2)
+  sisaPiutang  Decimal       @default(0) @map("sisa_piutang") @db.Decimal(16, 2)
+  status       PiutangStatus @default(BELUM_LUNAS)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  invoice   Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  pelanggan Pelanggan @relation(fields: [pelangganId], references: [id], onDelete: Restrict)
+
+  @@index([pelangganId])
+  @@map("t_piutang")
+}
+
+model KasBankTransaksi {
+  id            String       @id @default(cuid())
+  noTransaksi   String       @unique @map("no_transaksi") @db.VarChar(40)
+  tanggal       DateTime
+  jenis         KasBankJenis
+  kategori      String       @db.VarChar(120)
+  deskripsi     String?      @db.Text
+  jumlah        Decimal      @default(0) @db.Decimal(16, 2)
+  akunKasBankId String       @map("akun_kas_bank_id")
+  saldoAkhir    Decimal      @default(0) @map("saldo_akhir") @db.Decimal(16, 2)
+  refTipe       String?      @map("ref_tipe") @db.VarChar(80)
+  refId         String?      @map("ref_id")
+  refNo         String?      @map("ref_no") @db.VarChar(80)
+  createdById   String?      @map("created_by_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  akunKasBank AkunKasBank @relation(fields: [akunKasBankId], references: [id], onDelete: Restrict)
+  createdBy   User?       @relation("KasBankCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([akunKasBankId])
+  @@index([createdById])
+  @@index([refTipe, refId])
+  @@map("t_kas_bank")
+}

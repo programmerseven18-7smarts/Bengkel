@@ -1,6 +1,10 @@
 "use client";
+
+import type { ReactNode } from "react";
+import Link from "next/link";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
+import PrintButton from "@/components/common/PrintButton";
 import {
   Table,
   TableBody,
@@ -8,362 +12,461 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PlusIcon, TrashBinIcon } from "@/icons";
+import {
+  createInvoiceFromWorkOrderAction,
+  createStokKeluarFromWorkOrderAction,
+  updateWorkOrderStatusAction,
+} from "@/lib/work-orders/actions";
 
-interface WorkOrderDetailProps {
+type WorkOrderStatus =
+  | "DRAFT"
+  | "ANTRI"
+  | "DIKERJAKAN"
+  | "MENUNGGU_PART"
+  | "SELESAI"
+  | "BATAL";
+
+export interface WorkOrderDetailData {
   id: string;
+  noWorkOrder: string;
+  tanggalMasuk: string;
+  estimasiSelesai: string | null;
+  status: WorkOrderStatus;
+  pelanggan: {
+    nama: string;
+    noHp: string;
+    alamat: string;
+  };
+  kendaraan: {
+    merk: string;
+    tipe: string;
+    tahun: string;
+    platNomor: string;
+    warna: string;
+  };
+  mekanik: string;
+  keluhan: string;
+  catatan: string;
+  totalJasa: number;
+  totalSparepart: number;
+  grandTotal: number;
+  jasaItems: {
+    id: string;
+    namaJasa: string;
+    kategori: string;
+    estimasiMenit: number;
+    harga: number;
+    catatan: string;
+  }[];
+  sparepartItems: {
+    id: string;
+    namaSparepart: string;
+    stokSaatItu: number;
+    qty: number;
+    satuan: string;
+    hargaJual: number;
+    subtotal: number;
+    catatan: string;
+  }[];
+  stokKeluar: {
+    id: string;
+    noTransaksi: string;
+  }[];
+  invoice: {
+    id: string;
+    noInvoice: string;
+  } | null;
 }
 
-const workOrderData = {
-  noWorkOrder: "WO-2024-001",
-  tanggal: "30 April 2024",
-  status: "Dikerjakan" as const,
-  pelanggan: {
-    nama: "Budi Santoso",
-    noHp: "081234567890",
-    alamat: "Jl. Merdeka No. 123, Jakarta Selatan",
-  },
-  kendaraan: {
-    merk: "Honda",
-    tipe: "Beat",
-    tahun: "2022",
-    platNomor: "B 1234 ABC",
-    warna: "Merah",
-    odometer: "15.250 km",
-  },
-  keluhan: "Mesin brebet saat dingin, tarikan kurang responsif",
-  mekanik: "Rudi",
-  jasaServis: [
-    { id: "1", nama: "Tune Up Mesin", harga: 150000 },
-    { id: "2", nama: "Ganti Oli Mesin", harga: 50000 },
-    { id: "3", nama: "Cek Kelistrikan", harga: 75000 },
-  ],
-  sparepart: [
-    { id: "1", kode: "SPR-001", nama: "Oli Mesin MPX2 1L", qty: 1, harga: 85000 },
-    { id: "2", kode: "SPR-003", nama: "Busi NGK", qty: 1, harga: 25000 },
-    { id: "3", kode: "SPR-004", nama: "Filter Udara", qty: 1, harga: 45000 },
-  ],
-};
+interface WorkOrderDetailProps {
+  workOrder: WorkOrderDetailData;
+}
 
-const getStatusColor = (status: string) => {
+const statusOptions: { value: WorkOrderStatus; label: string }[] = [
+  { value: "DRAFT", label: "Draft" },
+  { value: "ANTRI", label: "Antri" },
+  { value: "DIKERJAKAN", label: "Dikerjakan" },
+  { value: "MENUNGGU_PART", label: "Menunggu Part" },
+  { value: "SELESAI", label: "Selesai" },
+  { value: "BATAL", label: "Batal" },
+];
+
+const statusLabel = (status: WorkOrderStatus) =>
+  statusOptions.find((item) => item.value === status)?.label ?? status;
+
+const getStatusColor = (status: WorkOrderStatus) => {
   switch (status) {
-    case "Antri":
+    case "DRAFT":
       return "light";
-    case "Dikerjakan":
+    case "ANTRI":
+      return "info";
+    case "DIKERJAKAN":
       return "primary";
-    case "Menunggu Part":
+    case "MENUNGGU_PART":
       return "warning";
-    case "Selesai":
+    case "SELESAI":
       return "success";
-    case "Batal":
+    case "BATAL":
       return "error";
-    default:
-      return "light";
   }
 };
 
-export default function WorkOrderDetail({ id }: WorkOrderDetailProps) {
-  const totalJasa = workOrderData.jasaServis.reduce((acc, jasa) => acc + jasa.harga, 0);
-  const totalSparepart = workOrderData.sparepart.reduce((acc, part) => acc + (part.harga * part.qty), 0);
-  const grandTotal = totalJasa + totalSparepart;
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+const formatDate = (date: string | null) => {
+  if (!date) return "-";
+
+  return new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+export default function WorkOrderDetail({ workOrder }: WorkOrderDetailProps) {
+  const hasSparepart = workOrder.sparepartItems.length > 0;
+  const hasStokKeluar = workOrder.stokKeluar.length > 0;
+  const hasInvoice = Boolean(workOrder.invoice);
 
   return (
-    <div className="grid grid-cols-12 gap-4 md:gap-6">
-      {/* Header Info */}
+    <div className="grid min-w-0 grid-cols-12 gap-4 md:gap-6">
       <div className="col-span-12">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap items-center gap-3">
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white/90">
-                  {workOrderData.noWorkOrder}
+                  {workOrder.noWorkOrder}
                 </h2>
-                <Badge color={getStatusColor(workOrderData.status)}>
-                  {workOrderData.status}
+                <Badge color={getStatusColor(workOrder.status)}>
+                  {statusLabel(workOrder.status)}
                 </Badge>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Tanggal: {workOrderData.tanggal} | Mekanik: {workOrderData.mekanik}
+                Masuk: {formatDate(workOrder.tanggalMasuk)} | Estimasi selesai:{" "}
+                {formatDate(workOrder.estimasiSelesai)} | Mekanik:{" "}
+                {workOrder.mekanik || "-"}
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Button variant="outline" size="sm">
-                Cetak Invoice
-              </Button>
-              <Button variant="primary" size="sm">
-                Proses Servis
-              </Button>
+
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <form
+                action={updateWorkOrderStatusAction}
+                className="flex flex-col gap-2 sm:flex-row sm:items-center"
+              >
+                <input type="hidden" name="id" value={workOrder.id} />
+                <select
+                  name="status"
+                  defaultValue={workOrder.status}
+                  className="h-11 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                >
+                  {statusOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" variant="outline" className="w-full sm:w-auto">
+                  Update Status
+                </Button>
+              </form>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <PrintButton />
+                {workOrder.status === "DRAFT" && (
+                  <Link href={`/servis/work-order/${workOrder.id}/edit`}>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      Edit Draft
+                    </Button>
+                  </Link>
+                )}
+                <form action={createStokKeluarFromWorkOrderAction}>
+                  <input type="hidden" name="id" value={workOrder.id} />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={!hasSparepart || hasStokKeluar || workOrder.status === "DRAFT"}
+                    className="w-full sm:w-auto"
+                  >
+                    {hasStokKeluar ? "Stok Sudah Keluar" : "Buat Stok Keluar"}
+                  </Button>
+                </form>
+                <form action={createInvoiceFromWorkOrderAction}>
+                  <input type="hidden" name="id" value={workOrder.id} />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={hasInvoice || workOrder.status === "DRAFT"}
+                    className="w-full sm:w-auto"
+                  >
+                    {hasInvoice ? "Invoice Sudah Ada" : "Buat Invoice"}
+                  </Button>
+                </form>
+              </div>
             </div>
           </div>
+
+          {(hasStokKeluar || hasInvoice) && (
+            <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              {workOrder.stokKeluar.map((item) => (
+                <Link
+                  key={item.id}
+                  href="/inventory/stok-keluar"
+                  className="rounded-full bg-brand-50 px-3 py-1 font-medium text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
+                >
+                  Stok Keluar: {item.noTransaksi}
+                </Link>
+              ))}
+              {workOrder.invoice && (
+                <Link
+                  href="/keuangan/invoice"
+                  className="rounded-full bg-success-50 px-3 py-1 font-medium text-success-600 dark:bg-success-500/15 dark:text-success-400"
+                >
+                  Invoice: {workOrder.invoice.noInvoice}
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Info Pelanggan */}
-      <div className="col-span-12 lg:col-span-6">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 h-full">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-4">
-            Informasi Pelanggan
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Nama</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {workOrderData.pelanggan.nama}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500 dark:text-gray-400">No. HP</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {workOrderData.pelanggan.noHp}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Alamat</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90 text-right max-w-[200px]">
-                {workOrderData.pelanggan.alamat}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <InfoCard title="Informasi Pelanggan">
+        <InfoRow label="Nama" value={workOrder.pelanggan.nama} />
+        <InfoRow label="No. HP" value={workOrder.pelanggan.noHp || "-"} />
+        <InfoRow label="Alamat" value={workOrder.pelanggan.alamat || "-"} />
+      </InfoCard>
 
-      {/* Info Kendaraan */}
-      <div className="col-span-12 lg:col-span-6">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 h-full">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-4">
-            Informasi Kendaraan
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400 block">Merk/Tipe</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {workOrderData.kendaraan.merk} {workOrderData.kendaraan.tipe}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400 block">Tahun</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {workOrderData.kendaraan.tahun}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400 block">Plat Nomor</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {workOrderData.kendaraan.platNomor}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500 dark:text-gray-400 block">Warna</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {workOrderData.kendaraan.warna}
-              </span>
-            </div>
-            <div className="col-span-2">
-              <span className="text-sm text-gray-500 dark:text-gray-400 block">Odometer</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {workOrderData.kendaraan.odometer}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <InfoCard title="Informasi Kendaraan">
+        <InfoRow
+          label="Merk/Tipe"
+          value={`${workOrder.kendaraan.merk} ${workOrder.kendaraan.tipe}`.trim()}
+        />
+        <InfoRow label="Plat Nomor" value={workOrder.kendaraan.platNomor} />
+        <InfoRow label="Tahun" value={workOrder.kendaraan.tahun || "-"} />
+        <InfoRow label="Warna" value={workOrder.kendaraan.warna || "-"} />
+      </InfoCard>
 
-      {/* Keluhan */}
       <div className="col-span-12">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
-            Keluhan Pelanggan
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+          <h3 className="mb-2 text-lg font-semibold text-gray-800 dark:text-white/90">
+            Keluhan dan Catatan
           </h3>
-          <p className="text-gray-600 dark:text-gray-300">
-            {workOrderData.keluhan}
+          <p className="text-gray-700 dark:text-gray-300">
+            {workOrder.keluhan || "-"}
           </p>
+          {workOrder.catatan && (
+            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+              Catatan: {workOrder.catatan}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Jasa Servis */}
-      <div className="col-span-12">
-        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden">
-          <div className="flex items-center justify-between p-5 md:p-6 border-b border-gray-100 dark:border-gray-800">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Jasa Servis
-            </h3>
-            <Button variant="outline" size="sm" startIcon={<PlusIcon className="size-4" />}>
-              Tambah Jasa
-            </Button>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                <TableRow>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    No
+      <DetailSection title="Jasa Servis" totalLabel="Subtotal Jasa" total={workOrder.totalJasa}>
+        <Table>
+          <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+            <TableRow>
+              {["No", "Nama Jasa", "Kategori", "Estimasi", "Harga"].map(
+                (header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >
+                    {header}
                   </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Nama Jasa
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400">
-                    Harga
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">
-                    Aksi
-                  </TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {workOrderData.jasaServis.map((jasa, index) => (
-                  <TableRow key={jasa.id}>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90">
-                      {jasa.nama}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90 text-end">
-                      Rp {jasa.harga.toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-center">
-                      <button className="p-1 text-gray-500 hover:text-error-500 dark:text-gray-400">
-                        <TrashBinIcon className="size-4" />
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="p-5 md:p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-            <div className="flex justify-end">
-              <div className="text-right">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Subtotal Jasa: </span>
-                <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                  Rp {totalJasa.toLocaleString("id-ID")}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                )
+              )}
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {workOrder.jasaItems.map((jasa, index) => (
+              <TableRow key={jasa.id}>
+                <TableCell className="px-5 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {index + 1}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                  {jasa.namaJasa}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {jasa.kategori || "-"}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {jasa.estimasiMenit ? `${jasa.estimasiMenit} menit` : "-"}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                  {formatCurrency(jasa.harga)}
+                </TableCell>
+              </TableRow>
+            ))}
+            {workOrder.jasaItems.length === 0 && (
+              <EmptyRow colSpan={5} text="Belum ada jasa servis." />
+            )}
+          </TableBody>
+        </Table>
+      </DetailSection>
 
-      {/* Sparepart */}
-      <div className="col-span-12">
-        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden">
-          <div className="flex items-center justify-between p-5 md:p-6 border-b border-gray-100 dark:border-gray-800">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Sparepart
-            </h3>
-            <Button variant="outline" size="sm" startIcon={<PlusIcon className="size-4" />}>
-              Tambah Sparepart
-            </Button>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                <TableRow>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Kode
+      <DetailSection
+        title="Sparepart Dipakai"
+        totalLabel="Subtotal Sparepart"
+        total={workOrder.totalSparepart}
+      >
+        <Table>
+          <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+            <TableRow>
+              {["No", "Nama Sparepart", "Stok Saat Itu", "Qty", "Harga", "Subtotal"].map(
+                (header) => (
+                  <TableCell
+                    key={header}
+                    isHeader
+                    className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >
+                    {header}
                   </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Nama Barang
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">
-                    Qty
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400">
-                    Harga
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-end text-theme-xs dark:text-gray-400">
-                    Subtotal
-                  </TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">
-                    Aksi
-                  </TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {workOrderData.sparepart.map((part) => (
-                  <TableRow key={part.id}>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90">
-                      {part.kode}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90">
-                      {part.nama}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90 text-center">
-                      {part.qty}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90 text-end">
-                      Rp {part.harga.toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-gray-800 text-theme-sm dark:text-white/90 text-end">
-                      Rp {(part.harga * part.qty).toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-center">
-                      <button className="p-1 text-gray-500 hover:text-error-500 dark:text-gray-400">
-                        <TrashBinIcon className="size-4" />
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="p-5 md:p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-            <div className="flex justify-end">
-              <div className="text-right">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Subtotal Sparepart: </span>
-                <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                  Rp {totalSparepart.toLocaleString("id-ID")}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                )
+              )}
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {workOrder.sparepartItems.map((part, index) => (
+              <TableRow key={part.id}>
+                <TableCell className="px-5 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {index + 1}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                  {part.namaSparepart}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {part.stokSaatItu}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                  {part.qty} {part.satuan}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm text-gray-800 dark:text-white/90">
+                  {formatCurrency(part.hargaJual)}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                  {formatCurrency(part.subtotal)}
+                </TableCell>
+              </TableRow>
+            ))}
+            {workOrder.sparepartItems.length === 0 && (
+              <EmptyRow colSpan={6} text="Belum ada sparepart." />
+            )}
+          </TableBody>
+        </Table>
+      </DetailSection>
 
-      {/* Total */}
       <div className="col-span-12">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <div className="flex gap-8">
-                <div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400 block">Total Jasa</span>
-                  <span className="text-base font-medium text-gray-800 dark:text-white/90">
-                    Rp {totalJasa.toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400 block">Total Sparepart</span>
-                  <span className="text-base font-medium text-gray-800 dark:text-white/90">
-                    Rp {totalSparepart.toLocaleString("id-ID")}
-                  </span>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+              <SummaryItem label="Total Jasa" value={workOrder.totalJasa} />
+              <SummaryItem label="Total Sparepart" value={workOrder.totalSparepart} />
             </div>
-            <div className="text-right">
-              <span className="text-sm text-gray-500 dark:text-gray-400 block">Grand Total</span>
-              <span className="text-2xl font-bold text-brand-500 dark:text-brand-400">
-                Rp {grandTotal.toLocaleString("id-ID")}
+            <div className="text-left sm:text-right">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Grand Total
               </span>
+              <p className="text-2xl font-bold text-brand-500 dark:text-brand-400">
+                {formatCurrency(workOrder.grandTotal)}
+              </p>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="col-span-12">
-        <div className="flex flex-wrap gap-3 justify-end">
-          <Button variant="outline" size="md">
-            Simpan Draft
-          </Button>
-          <Button variant="outline" size="md" className="text-warning-600 border-warning-300 hover:bg-warning-50">
-            Menunggu Part
-          </Button>
-          <Button variant="primary" size="md">
-            Selesaikan Servis
-          </Button>
         </div>
       </div>
     </div>
+  );
+}
+
+function InfoCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="col-span-12 lg:col-span-6">
+      <div className="h-full rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">
+          {title}
+        </h3>
+        <div className="space-y-3">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 text-sm">
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="max-w-[280px] text-right font-medium text-gray-800 dark:text-white/90">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function DetailSection({
+  title,
+  totalLabel,
+  total,
+  children,
+}: {
+  title: string;
+  totalLabel: string;
+  total: number;
+  children: ReactNode;
+}) {
+  return (
+    <div className="col-span-12">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="border-b border-gray-100 p-5 dark:border-gray-800 md:p-6">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+            {title}
+          </h3>
+        </div>
+        <div className="overflow-x-auto">{children}</div>
+        <div className="border-t border-gray-100 bg-gray-50 p-5 text-right dark:border-gray-800 dark:bg-gray-900 md:p-6">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {totalLabel}:{" "}
+          </span>
+          <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            {formatCurrency(total)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <p className="font-semibold text-gray-800 dark:text-white/90">
+        {formatCurrency(value)}
+      </p>
+    </div>
+  );
+}
+
+function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
+  return (
+    <TableRow>
+      <TableCell
+        colSpan={colSpan}
+        className="px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+      >
+        {text}
+      </TableCell>
+    </TableRow>
   );
 }

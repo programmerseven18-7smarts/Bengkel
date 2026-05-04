@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -8,146 +8,93 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
+import { downloadCsv } from "@/lib/client-csv";
 
-// Mock data laporan stok
-const stokData = [
-  {
-    kode: "SPR-001",
-    nama: "Oli Mesin 10W-40",
-    kategori: "Oli & Pelumas",
-    stokAwal: 100,
-    masuk: 50,
-    keluar: 85,
-    stokAkhir: 65,
-    nilaiStok: 6500000,
-  },
-  {
-    kode: "SPR-002",
-    nama: "Filter Oli",
-    kategori: "Filter",
-    stokAwal: 80,
-    masuk: 40,
-    keluar: 72,
-    stokAkhir: 48,
-    nilaiStok: 2400000,
-  },
-  {
-    kode: "SPR-003",
-    nama: "Kampas Rem Depan",
-    kategori: "Rem",
-    stokAwal: 50,
-    masuk: 30,
-    keluar: 35,
-    stokAkhir: 45,
-    nilaiStok: 4500000,
-  },
-  {
-    kode: "SPR-004",
-    nama: "Busi NGK",
-    kategori: "Kelistrikan",
-    stokAwal: 120,
-    masuk: 60,
-    keluar: 95,
-    stokAkhir: 85,
-    nilaiStok: 2125000,
-  },
-  {
-    kode: "SPR-005",
-    nama: "Aki 45Ah",
-    kategori: "Kelistrikan",
-    stokAwal: 20,
-    masuk: 10,
-    keluar: 12,
-    stokAkhir: 18,
-    nilaiStok: 14400000,
-  },
-  {
-    kode: "SPR-006",
-    nama: "V-Belt",
-    kategori: "Mesin",
-    stokAwal: 30,
-    masuk: 20,
-    keluar: 28,
-    stokAkhir: 22,
-    nilaiStok: 3300000,
-  },
-];
+export interface LaporanStokRow {
+  kode: string;
+  nama: string;
+  kategori: string;
+  stokAwal: number;
+  masuk: number;
+  keluar: number;
+  stokAkhir: number;
+  minStok: number;
+  nilaiStok: number;
+}
 
-const kategoriSummary = [
-  { nama: "Oli & Pelumas", totalItem: 15, nilaiStok: 18500000 },
-  { nama: "Filter", totalItem: 8, nilaiStok: 5200000 },
-  { nama: "Rem", totalItem: 12, nilaiStok: 9800000 },
-  { nama: "Kelistrikan", totalItem: 25, nilaiStok: 28500000 },
-  { nama: "Mesin", totalItem: 18, nilaiStok: 15200000 },
-];
+export interface KategoriStokSummary {
+  nama: string;
+  totalItem: number;
+  nilaiStok: number;
+}
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("id-ID", {
+export interface LaporanStokSummary {
+  totalSku: number;
+  totalUnit: number;
+  totalNilaiStok: number;
+  stokMinimum: number;
+}
+
+interface LaporanStokProps {
+  summary: LaporanStokSummary;
+  stokData: LaporanStokRow[];
+  kategoriSummary: KategoriStokSummary[];
+}
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(value);
-};
 
-export default function LaporanStok() {
+export default function LaporanStok({
+  summary,
+  stokData,
+  kategoriSummary,
+}: LaporanStokProps) {
   const [kategoriFilter, setKategoriFilter] = useState("Semua");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredData = stokData.filter((item) => {
-    const matchSearch =
-      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.kode.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchKategori =
-      kategoriFilter === "Semua" || item.kategori === kategoriFilter;
-    return matchSearch && matchKategori;
-  });
+  const kategoriOptions = useMemo(
+    () => Array.from(new Set(stokData.map((item) => item.kategori))).sort(),
+    [stokData]
+  );
 
-  const totalNilaiStok = stokData.reduce((sum, item) => sum + item.nilaiStok, 0);
-  const totalItem = stokData.reduce((sum, item) => sum + item.stokAkhir, 0);
+  const filteredData = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return stokData.filter((item) => {
+      const matchSearch =
+        !keyword ||
+        `${item.nama} ${item.kode}`.toLowerCase().includes(keyword);
+      const matchKategori =
+        kategoriFilter === "Semua" || item.kategori === kategoriFilter;
+      return matchSearch && matchKategori;
+    });
+  }, [kategoriFilter, searchTerm, stokData]);
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Total SKU Aktif
-          </p>
-          <p className="mt-1 text-2xl font-bold text-gray-800 dark:text-white/90">
-            {stokData.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Total Unit Stok
-          </p>
-          <p className="mt-1 text-2xl font-bold text-gray-800 dark:text-white/90">
-            {totalItem}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Nilai Total Stok
-          </p>
-          <p className="mt-1 text-2xl font-bold text-brand-600 dark:text-brand-400">
-            {formatCurrency(totalNilaiStok)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Stok di Bawah Minimum
-          </p>
-          <p className="mt-1 text-2xl font-bold text-warning-600 dark:text-warning-400">
-            8
-          </p>
-        </div>
+        <SummaryCard title="Total SKU Aktif" value={`${summary.totalSku}`} />
+        <SummaryCard title="Total Unit Stok" value={`${summary.totalUnit}`} />
+        <SummaryCard
+          title="Nilai Total Stok"
+          value={formatCurrency(summary.totalNilaiStok)}
+          tone="brand"
+        />
+        <SummaryCard
+          title="Stok di Bawah Minimum"
+          value={`${summary.stokMinimum}`}
+          tone="warning"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Kategori Summary */}
-        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="border-b border-gray-200 px-6 py-5 dark:border-gray-800">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
               Stok per Kategori
@@ -158,42 +105,65 @@ export default function LaporanStok() {
               {kategoriSummary.map((kategori) => (
                 <div
                   key={kategori.nama}
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between gap-4"
                 >
                   <div>
                     <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                       {kategori.nama}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {kategori.totalItem} item
+                      {kategori.totalItem} SKU
                     </p>
                   </div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                  <p className="text-right text-sm font-semibold text-gray-800 dark:text-white/90">
                     {formatCurrency(kategori.nilaiStok)}
                   </p>
                 </div>
               ))}
+              {kategoriSummary.length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Belum ada kategori stok.
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Stock Movement Table */}
-        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] lg:col-span-2">
+        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] lg:col-span-2">
           <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-5 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                 Pergerakan Stok
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Bulan ini
+                Pergerakan stok bulan ini dari ledger
               </p>
             </div>
-            <Button size="sm" variant="outline">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                downloadCsv(
+                  "laporan-stok.csv",
+                  [
+                    { key: "kode", label: "Kode" },
+                    { key: "nama", label: "Nama Sparepart" },
+                    { key: "kategori", label: "Kategori" },
+                    { key: "stokAwal", label: "Stok Awal" },
+                    { key: "masuk", label: "Masuk" },
+                    { key: "keluar", label: "Keluar" },
+                    { key: "stokAkhir", label: "Stok Akhir" },
+                    { key: "minStok", label: "Min Stok" },
+                    { key: "nilaiStok", label: "Nilai Stok" },
+                  ],
+                  filteredData
+                )
+              }
+            >
               Export
             </Button>
           </div>
 
-          {/* Filters */}
           <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-4 dark:border-gray-800 sm:flex-row">
             <div className="flex-1">
               <input
@@ -210,11 +180,11 @@ export default function LaporanStok() {
               onChange={(e) => setKategoriFilter(e.target.value)}
             >
               <option value="Semua">Semua Kategori</option>
-              <option value="Oli & Pelumas">Oli & Pelumas</option>
-              <option value="Filter">Filter</option>
-              <option value="Rem">Rem</option>
-              <option value="Kelistrikan">Kelistrikan</option>
-              <option value="Mesin">Mesin</option>
+              {kategoriOptions.map((kategori) => (
+                <option key={kategori} value={kategori}>
+                  {kategori}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -222,56 +192,36 @@ export default function LaporanStok() {
             <Table>
               <TableHeader className="border-b border-gray-200 dark:border-gray-800">
                 <TableRow>
-                  <TableCell
-                    isHeader
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-                  >
-                    Kode
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
-                  >
-                    Nama Sparepart
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90"
-                  >
-                    Awal
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90"
-                  >
-                    Masuk
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90"
-                  >
-                    Keluar
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90"
-                  >
-                    Akhir
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90"
-                  >
-                    Nilai
-                  </TableCell>
+                  {[
+                    "No",
+                    "Kode",
+                    "Nama Sparepart",
+                    "Awal",
+                    "Masuk",
+                    "Keluar",
+                    "Akhir",
+                    "Min.",
+                    "Nilai",
+                  ].map((header) => (
+                    <TableCell
+                      key={header}
+                      isHeader
+                      className="px-6 py-4 text-left text-sm font-semibold text-gray-800 dark:text-white/90"
+                    >
+                      {header}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredData.map((item) => (
+                {filteredData.map((item, index) => (
                   <TableRow
                     key={item.kode}
                     className="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
                   >
+                    <TableCell className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {index + 1}
+                    </TableCell>
                     <TableCell className="px-6 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
                       {item.kode}
                     </TableCell>
@@ -297,16 +247,53 @@ export default function LaporanStok() {
                     <TableCell className="px-6 py-4 text-right text-sm font-semibold text-gray-800 dark:text-white/90">
                       {item.stokAkhir}
                     </TableCell>
+                    <TableCell className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                      {item.minStok}
+                    </TableCell>
                     <TableCell className="px-6 py-4 text-right text-sm text-gray-800 dark:text-white/90">
                       {formatCurrency(item.nilaiStok)}
                     </TableCell>
                   </TableRow>
                 ))}
+                {filteredData.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      Belum ada data stok sesuai filter.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  title,
+  value,
+  tone = "default",
+}: {
+  title: string;
+  value: string;
+  tone?: "default" | "brand" | "warning";
+}) {
+  const valueClass =
+    tone === "brand"
+      ? "text-brand-600 dark:text-brand-400"
+      : tone === "warning"
+        ? "text-warning-600 dark:text-warning-400"
+        : "text-gray-800 dark:text-white/90";
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+      <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+      <p className={`mt-1 text-2xl font-bold ${valueClass}`}>{value}</p>
     </div>
   );
 }

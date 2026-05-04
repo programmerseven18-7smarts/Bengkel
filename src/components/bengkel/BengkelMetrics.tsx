@@ -1,52 +1,50 @@
 "use client";
+
 import React from "react";
 import Badge from "../ui/badge/Badge";
-import { ArrowUpIcon, ArrowDownIcon, WrenchIcon, BoxIconLine, DollarLineIcon, GroupIcon } from "@/icons";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  BoxIconLine,
+  DollarLineIcon,
+  GroupIcon,
+  WrenchIcon,
+} from "@/icons";
 
-const metrics = [
-  {
-    title: "Total Servis Hari Ini",
-    value: "24",
-    change: "+12.5%",
-    isUp: true,
-    icon: <WrenchIcon className="text-gray-800 size-6 dark:text-white/90" />,
-  },
-  {
-    title: "Work Order Aktif",
-    value: "8",
-    change: "+5.2%",
-    isUp: true,
-    icon: <BoxIconLine className="text-gray-800 size-6 dark:text-white/90" />,
-  },
-  {
-    title: "Penjualan Sparepart",
-    value: "Rp 4.850.000",
-    change: "+8.7%",
-    isUp: true,
-    icon: <DollarLineIcon className="text-gray-800 size-6 dark:text-white/90" />,
-  },
-  {
-    title: "Pendapatan Bulan Ini",
-    value: "Rp 127.500.000",
-    change: "-2.3%",
-    isUp: false,
-    icon: <GroupIcon className="text-gray-800 size-6 dark:text-white/90" />,
-  },
-];
+export type BengkelMetricIcon = "servis" | "work-order" | "sparepart" | "pendapatan";
 
-export const BengkelMetrics = () => {
+export interface BengkelMetric {
+  title: string;
+  value: string;
+  change?: string;
+  isUp?: boolean;
+  icon: BengkelMetricIcon;
+}
+
+interface BengkelMetricsProps {
+  metrics: BengkelMetric[];
+}
+
+const icons: Record<BengkelMetricIcon, React.ReactNode> = {
+  servis: <WrenchIcon className="text-gray-800 size-6 dark:text-white/90" />,
+  "work-order": <BoxIconLine className="text-gray-800 size-6 dark:text-white/90" />,
+  sparepart: <DollarLineIcon className="text-gray-800 size-6 dark:text-white/90" />,
+  pendapatan: <GroupIcon className="text-gray-800 size-6 dark:text-white/90" />,
+};
+
+export const BengkelMetrics = ({ metrics }: BengkelMetricsProps) => {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 md:gap-6">
-      {metrics.map((metric, index) => (
+      {metrics.map((metric) => (
         <div
-          key={index}
-          className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
+          key={metric.title}
+          className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
         >
-          <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-            {metric.icon}
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+            {icons[metric.icon]}
           </div>
 
-          <div className="flex items-end justify-between mt-5">
+          <div className="mt-5 flex items-end justify-between gap-3">
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {metric.title}
@@ -55,10 +53,16 @@ export const BengkelMetrics = () => {
                 {metric.value}
               </h4>
             </div>
-            <Badge color={metric.isUp ? "success" : "error"}>
-              {metric.isUp ? <ArrowUpIcon /> : <ArrowDownIcon className="text-error-500" />}
-              {metric.change}
-            </Badge>
+            {metric.change && (
+              <Badge color={metric.isUp ? "success" : "error"}>
+                {metric.isUp ? (
+                  <ArrowUpIcon />
+                ) : (
+                  <ArrowDownIcon className="text-error-500" />
+                )}
+                {metric.change}
+              </Badge>
+            )}
           </div>
         </div>
       ))}
